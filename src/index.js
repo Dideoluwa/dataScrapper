@@ -1,0 +1,48 @@
+const express = require('express');
+const dotenv = require('dotenv');
+const { GeminiService } = require('./geminiService');
+const { UniversityController } = require('./universityController');
+
+// Load environment variables
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3500;
+
+// Middleware
+app.use(express.json());
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', service: 'AfroRank Data Extractor' });
+});
+
+// Initialize Gemini Service
+const geminiApiKey = process.env.GEMINI_API_KEY;
+if (!geminiApiKey) {
+  console.error('ERROR: GEMINI_API_KEY is not set in environment variables');
+  process.exit(1);
+}
+
+const geminiService = new GeminiService(geminiApiKey);
+const universityController = new UniversityController(geminiService);
+
+// University extraction endpoint
+app.post('/extract', universityController.extract);
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({
+    error: 'Internal server error',
+    message: err.message,
+  });
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log(` AfroRank Data Extractor API running on port ${PORT}`);
+  console.log(` Health check: http://localhost:${PORT}/health`);
+  console.log(` Extract endpoint: POST http://localhost:${PORT}/extract`);
+});
+
