@@ -37,6 +37,14 @@ const UniversitySchema = z.object({
     source: z.string(),
   }),
 
+  diversity_direct: z
+    .string()
+    .describe('Single diversity figure only, e.g. "92%" (no words, just the value).'),
+
+  tuition_direct: z
+    .string()
+    .describe('Single tuition amount only, e.g. "$24000" (no words, just the value).'),
+
   scholarships: z.array(
     z.object({
       name: z.string(),
