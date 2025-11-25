@@ -39,11 +39,16 @@ const UniversitySchema = z.object({
 
   diversity_direct: z
     .string()
-    .describe('Single diversity figure only, e.g. "92%" (no words, just the value).'),
+    .describe('Percent of students of color only (e.g. "42%") — no words, just the value.'),
 
   tuition_direct: z
     .string()
     .describe('Single tuition amount only, e.g. "$24000" (no words, just the value).'),
+
+  campus_image_url: z
+    .union([z.string().url(), z.literal('Not found')])
+    .optional()
+    .describe('Direct URL to a real, current campus image (prefer official .edu). Use "Not found" if none.'),
 
   scholarships: z.array(
     z.object({

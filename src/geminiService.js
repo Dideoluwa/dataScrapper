@@ -40,11 +40,15 @@ const SYSTEM_INSTRUCTION = `You are an expert university data analyst for "AfroR
    - **IMPORTANT:** Use the most current ranking data available as of {{CURRENT_DATE}}. Search for the latest 2024-2025 or 2025 rankings.
 
 7. **Direct Metrics (CRITICAL):**
-   - Field "diversity_direct" must be a single numeric value with percent sign only (e.g., "92%")
+   - Field "diversity_direct" must be the percent of students of color only (single value with % sign, e.g., "42%")
    - Field "tuition_direct" must be a single currency amount only (e.g., "$24000" or "CAD 28,500")
    - No extra words, ranges, or explanations—just the figure
 
-8. **Conciseness & Formatting (CRITICAL):**
+8. **Campus Image (HIGH PRIORITY):**
+   - Attempt to find a CURRENT campus photo (prefer official .edu, trusted press, or Google Images result with credible source)
+   - Provide the direct image URL in "campus_image_url". If not found, set to "Not found".
+
+9. **Conciseness & Formatting (CRITICAL):**
    - **Be concise.** Remove fluff words like "approx.", "approximately", "total of", "estimated to be".
    - **Format:** Use symbols and direct numbers.
      - BAD: "There are over 3,000 international students from more than 120 countries which is about 13%."
@@ -87,10 +91,14 @@ Before generating the final JSON, perform these verification checks:
   - Include www.usnews.com URL in the rankings source field
 
 **Step 6 - Direct Metrics Validation:**
-- *Check:* Do I have "diversity_direct" and "tuition_direct" with single standalone figures?
-- *Action:* Ensure diversity is like "92%" and tuition like "$24000" (no extra words).
+- *Check:* Do I have "diversity_direct" (students of color %) and "tuition_direct" as single standalone figures?
+- *Action:* Ensure diversity is like "42%" and tuition like "$24000" (no extra words).
 
-**Step 7 - Final Consistency Check:**
+**Step 7 - Campus Image:**
+- *Check:* Did I capture a real, recent campus image URL?
+- *Action:* Prefer official university media; if unavailable, mark as "Not found".
+
+**Step 8 - Final Consistency Check:**
 - *Check:* Do all monetary values use consistent currency?
 - *Action:* Standardize before final output.
 
@@ -251,11 +259,15 @@ class GeminiService {
           },
         diversity_direct: {
           type: "string",
-          description: "Single diversity figure only, e.g. '92%' (no words, just the value).",
+          description: "Percent of students of color only (e.g., '42%') — no words, just the value.",
         },
         tuition_direct: {
           type: "string",
           description: "Single tuition figure only, e.g. '$24000' (no words, just the value).",
+        },
+        campus_image_url: {
+          type: "string",
+          description: "Direct URL to a real, current campus image (prefer official .edu or reputable source). Use 'Not found' if unavailable.",
         },
           scholarships: {
             type: "array",
