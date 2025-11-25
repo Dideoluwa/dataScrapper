@@ -88,7 +88,11 @@ const UniversitySchema = z.object({
     top_majors: z.array(z.string()).optional(),
     professor_ratings: z.string().optional().describe('e.g. 4.3/5'),
     global_ranking_qs: z.string().optional(),
-    us_news_ranking: z.string().optional(),
+    overall_national_rank: z.string().describe('Overall national ranking in format "#X in [Country]" (e.g., "#3 in Canada", "#1 in USA", "#5 in UK"). This is the OVERALL ranking, not category-specific. REQUIRED.'),
+    us_news_rank: z.string().describe('US News ranking from www.usnews.com. REQUIRED for ALL universities (both US and international). Format: e.g., "#15 in National Universities" or "#3 in Global Universities" or "Not ranked" if not found.'),
+    ranking_canada: z.string().optional().describe('National ranking in Canada (e.g., Maclean\'s). Include ONLY if university is in Canada.'),
+    ranking_us: z.string().optional().describe('National ranking in US (e.g., US News). Include ONLY if university is in United States.'),
+    ranking_uk: z.string().optional().describe('National ranking in UK (e.g., Times/Sunday Times). Include ONLY if university is in United Kingdom.'),
     source: z.string().optional(),
   }).optional(),
 

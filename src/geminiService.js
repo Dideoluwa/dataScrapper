@@ -3,7 +3,7 @@ const { zodToJsonSchema } = require("zod-to-json-schema");
 const { UniversitySchema } = require("./schemas");
 
 
-const SYSTEM_INSTRUCTION = `You are an expert university data analyst for "AfroRank," a platform helping African students find universities abroad. Your primary goal is to extract a highly accurate, verified, and comprehensive JSON profile for the specified university, using data that is up-to-date as of November 2025.
+const SYSTEM_INSTRUCTION = `You are an expert university data analyst for "AfroRank," a platform helping African students find universities abroad. Your primary goal is to extract a highly accurate, verified, and comprehensive JSON profile for the specified university, using data that is up-to-date as of {{CURRENT_DATE}}.
 
 ---
 
@@ -26,7 +26,20 @@ const SYSTEM_INSTRUCTION = `You are an expert university data analyst for "AfroR
    - Look for: "African Student Association", "International Entrance Awards", "Visa Requirements
 5. **Date Accuracy:** Prioritize data for the most recent available academic year (2024-2025 or 2025-2026).
 
-6. **Conciseness & Formatting (CRITICAL):**
+6. **Country-Specific Rankings (CRITICAL):**
+   - **Overall National Rank (REQUIRED):** MUST include overall_national_rank in the format "#X in [Country]" (e.g., "#3 in Canada", "#1 in USA", "#5 in UK")
+   - This should be the OVERALL national ranking, not a category-specific ranking (e.g., NOT "#2 Research College in Canada", just "#2 in Canada")
+   - **US News Rank (REQUIRED FOR ALL):** MUST include us_news_rank from www.usnews.com for ALL universities (both US and international)
+     - Search www.usnews.com for the university's ranking
+     - Format: e.g., "#15 in National Universities" or "#3 in Global Universities" or "Not ranked" if not found
+     - Include the source URL from www.usnews.com in the rankings source field
+   - **Canadian universities:** MUST include ranking_canada (e.g., Maclean's ranking) AND overall_national_rank AND us_news_rank
+   - **US universities:** MUST include ranking_us (e.g., US News ranking) AND overall_national_rank AND us_news_rank
+   - **UK universities:** MUST include ranking_uk (e.g., Times/Sunday Times ranking) AND overall_national_rank AND us_news_rank
+   - Only include the country-specific ranking field for the country where the university is located
+   - **IMPORTANT:** Use the most current ranking data available as of {{CURRENT_DATE}}. Search for the latest 2024-2025 or 2025 rankings.
+
+7. **Conciseness & Formatting (CRITICAL):**
    - **Be concise.** Remove fluff words like "approx.", "approximately", "total of", "estimated to be".
    - **Format:** Use symbols and direct numbers.
      - BAD: "There are over 3,000 international students from more than 120 countries which is about 13%."
@@ -56,7 +69,19 @@ Before generating the final JSON, perform these verification checks:
 - *Check:* Did I find at least one club related to African students?
 - *Action:* Look closer at student life sections.
 
-**Step 5 - Final Consistency Check:**
+**Step 5 - Country-Specific Rankings:**
+- *Check:* What country is the university in? What is the current overall national ranking? What is the US News ranking from www.usnews.com?
+- *Action:* 
+  - Find the OVERALL national ranking (not category-specific) and format as "#X in [Country]"
+  - **REQUIRED:** Search www.usnews.com and include us_news_rank for ALL universities (format: "#X in [Category]" or "Not ranked")
+  - If Canada: Include overall_national_rank (e.g., "#3 in Canada") AND ranking_canada AND us_news_rank
+  - If United States: Include overall_national_rank (e.g., "#1 in USA") AND ranking_us AND us_news_rank
+  - If United Kingdom: Include overall_national_rank (e.g., "#5 in UK") AND ranking_uk AND us_news_rank
+  - Verify the ranking is current as of {{CURRENT_DATE}} - search for latest 2024-2025 or 2025 rankings
+  - Do NOT use category-specific rankings like "#2 Research College" - use overall national rank only
+  - Include www.usnews.com URL in the rankings source field
+
+**Step 6 - Final Consistency Check:**
 - *Check:* Do all monetary values use consistent currency?
 - *Action:* Standardize before final output.
 
@@ -306,10 +331,29 @@ class GeminiService {
           rankings: {
             type: "object",
             properties: {
-              top_majors: { type: "array", items: { type: "string" } }, // ADDED
-              professor_ratings: { type: "string", description: "e.g. 4.3/5" }, // ADDED
+              top_majors: { type: "array", items: { type: "string" } },
+              professor_ratings: { type: "string", description: "e.g. 4.3/5" },
               global_ranking_qs: { type: "string" },
-              us_news_ranking: { type: "string" },
+              overall_national_rank: {
+                type: "string",
+                description: "Overall national ranking in format '#X in [Country]' (e.g., '#3 in Canada', '#1 in USA', '#5 in UK'). This is the OVERALL ranking, not category-specific. REQUIRED for all universities."
+              },
+              us_news_rank: {
+                type: "string",
+                description: "US News ranking from www.usnews.com. REQUIRED for ALL universities (both US and international). Format: e.g., '#15 in National Universities' or '#3 in Global Universities' or 'Not ranked' if not found on US News."
+              },
+              ranking_canada: { 
+                type: "string", 
+                description: "National ranking in Canada (e.g., Maclean's ranking). Include ONLY if university is in Canada." 
+              },
+              ranking_us: { 
+                type: "string", 
+                description: "National ranking in US (e.g., US News ranking). Include ONLY if university is in United States." 
+              },
+              ranking_uk: { 
+                type: "string", 
+                description: "National ranking in UK (e.g., Times/Sunday Times ranking). Include ONLY if university is in United Kingdom." 
+              },
               source: { type: "string" },
             },
           },
@@ -326,11 +370,18 @@ class GeminiService {
         ],
       };
 
+      // Get current date for up-to-date rankings
+      const currentDate = new Date().toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+
       // Replace placeholders in system instruction
-      const systemInstruction = SYSTEM_INSTRUCTION.replace(
-        "{{UNIVERSITY_NAME_OR_URL}}",
-        universityName
-      ).replace("{{JSON_SCHEMA}}", JSON.stringify(jsonSchema, null, 2));
+      const systemInstruction = SYSTEM_INSTRUCTION
+        .replace("{{UNIVERSITY_NAME_OR_URL}}", universityName)
+        .replace(/{{CURRENT_DATE}}/g, currentDate)
+        .replace("{{JSON_SCHEMA}}", JSON.stringify(jsonSchema, null, 2));
 
       // Initialize model with Google Search tool enabled and response schema
       // Note: The tool name may vary based on SDK version - try both googleSearch and google_search
