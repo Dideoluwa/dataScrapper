@@ -45,10 +45,21 @@ const UniversitySchema = z.object({
     .string()
     .describe('Single tuition amount only, e.g. "$24000" (no words, just the value).'),
 
-  campus_image_url: z
-    .union([z.string().url(), z.literal('Not found')])
-    .optional()
-    .describe('Direct URL to a real, current campus image (prefer official .edu). Use "Not found" if none.'),
+  university_image: z
+    .string()
+    .describe('URL to a high-quality REAL DIRECT PHOTOGRAPH of a distinctive, recognizable campus building specific to this university. Must be a real photo, NOT framed, NOT on merchandise (shirts/mugs/posters), NOT rendered/artificial. Must show the actual distinctive building(s) of this specific university (e.g., grand stone buildings with ivy, red-brick towers, modern glass buildings, traditional architecture). Examples: University of Illinois (stone building with ivy), Howard University (red-brick tower), NYU (modern glass building). PRIORITY: Official .edu page URLs with images (e.g., towson.edu/visit/, university.edu/campus/), case study pages, or partnership sites. Also acceptable: Direct image URLs from credible sources. FORBIDDEN: Wikimedia Commons (upload.wikimedia.org), FineArtAmerica (images.fineartamerica.com), framed images, merchandise, rendered images. REQUIRED.'),
+
+  city_image: z
+    .string()
+    .describe('URL to a high-quality REAL DIRECT PHOTOGRAPH cityscape image showing many buildings of the city where the university is located. Must be a real photo, NOT framed, NOT on merchandise (shirts/mugs/posters), NOT rendered/artificial. Must show a city view with lots of buildings visible (cityscape/urban landscape/skyline), not a single building. Examples: Chicago (skyline with skyscrapers), Toronto (waterfront skyline), Washington D.C. (Capitol with city context), London (Big Ben with city). Types: city skylines, waterfront cityscapes, urban landscapes with multiple buildings, landmarks with city context. PRIORITY: Official city/tourism page URLs with images. Also acceptable: Direct image URLs from credible sources. FORBIDDEN: Wikimedia Commons (upload.wikimedia.org), FineArtAmerica (images.fineartamerica.com), framed images, merchandise, rendered images. REQUIRED.'),
+
+  university_rating: z
+    .string()
+    .describe('Overall rating of the university on a scale of 1-5. Provide only the number (e.g., "4", "5", "3"). Based on academic reputation, student satisfaction, facilities, and overall quality. REQUIRED.'),
+
+  city_rating: z
+    .string()
+    .describe('Overall rating of the city on a scale of 1-5. Provide only the number (e.g., "4", "5", "3"). Based on livability, safety, cost of living, cultural opportunities, and overall quality of life for students. REQUIRED.'),
 
   scholarships: z.array(
     z.object({

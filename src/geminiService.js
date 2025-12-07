@@ -44,9 +44,61 @@ const SYSTEM_INSTRUCTION = `You are an expert university data analyst for "AfroR
    - Field "tuition_direct" must be a single currency amount only (e.g., "$24000" or "CAD 28,500")
    - No extra words, ranges, or explanations—just the figure
 
-8. **Campus Image (HIGH PRIORITY):**
-   - Attempt to find a CURRENT campus photo (prefer official .edu, trusted press, or Google Images result with credible source)
-   - Provide the direct image URL in "campus_image_url". If not found, set to "Not found".
+8. **University and City Ratings (REQUIRED):**
+   - Field "university_rating" must be an overall rating of the university on a scale of 1-5
+     - Consider: academic reputation, student satisfaction, facilities, research output, employment outcomes, international recognition
+     - Provide ONLY the number (e.g., "4", "5", "3") - NOT "4/5" or "4 out of 5"
+     - Use research from rankings, student reviews, and academic assessments
+   - Field "city_rating" must be an overall rating of the city on a scale of 1-5
+     - Consider: livability, safety, cost of living, cultural opportunities, student-friendly environment, quality of life
+     - Provide ONLY the number (e.g., "4", "5", "3") - NOT "4/5" or "4 out of 5"
+     - Use research from city rankings, livability indexes, and student testimonials
+
+9. **University and City Images (CRITICAL - REQUIRED):**
+   - **ABSOLUTE REQUIREMENT:** Images MUST be REAL, DIRECT PHOTOGRAPHS - NOT framed images, NOT printed on merchandise (shirts, mugs, posters), NOT rendered/artificial images, NOT illustrations
+   - **FORBIDDEN SOURCES (DO NOT USE - These return errors):**
+     - Wikimedia Commons (upload.wikimedia.org, wikimedia.org) - returns 404 errors
+     - FineArtAmerica (images.fineartamerica.com) - returns Access Denied errors
+     - Any site that requires authentication or returns access errors
+   - **FORBIDDEN IMAGE TYPES:**
+     - Images in picture frames
+     - Images printed on shirts, mugs, posters, merchandise
+     - Rendered/3D/computer-generated images
+     - Illustrations, drawings, paintings, artwork
+     - Mockups, templates, placeholders
+   - **University Image:** MUST find a high-quality REAL PHOTO of a DISTINCTIVE, RECOGNIZABLE CAMPUS BUILDING specific to this university
+     - **CRITICAL:** Image must show the actual distinctive building(s) of this specific university (e.g., grand stone buildings with ivy, red-brick towers, modern glass buildings, traditional architecture)
+     - **Examples of good images:** University of Illinois (stone building with ivy), Howard University (red-brick tower), NYU (modern glass building), University of Toronto (curved roofline building)
+     - **PRIORITY ORDER (ONLY USE THESE WORKING SOURCES):** 
+       1. **Official university website (.edu domain) pages with images** - Examples: towson.edu/visit/, university.edu/campus/, university.edu/about/
+          - Look for pages like: "visit", "campus", "about", "virtual tour", "campus life"
+          - Return the PAGE URL (e.g., https://www.towson.edu/visit/ or https://www.accruent.com/resources/case-studies/towson)
+          - These are the MOST RELIABLE sources
+       2. **Official university system/partnership sites** - Examples: shadygrove.usmd.edu/universities/towson-university
+       3. **Case studies, news articles, or official features** about the university with campus images
+       4. **Reputable sources** - Official tourism sites, reputable education sites
+     - The URL can be a **page URL** (like .edu/visit/) OR a direct image URL if from a credible source
+     - The URL MUST be publicly accessible (no authentication, no Access Denied errors)
+     - **FORBIDDEN:** upload.wikimedia.org, images.fineartamerica.com, any site returning 404/Access Denied
+     - **REQUIRED:** Image must show distinctive campus building(s) specific to this university, not generic buildings
+   - **City Image:** MUST find a high-quality REAL PHOTO cityscape image showing MANY BUILDINGS of the city where the university is located
+     - **CRITICAL:** Image must be a REAL, DIRECT PHOTOGRAPH showing a city view with lots of buildings visible (cityscape/urban landscape/skyline), NOT a single building, NOT framed, NOT on merchandise
+     - **Examples of good images:** Chicago (skyline with skyscrapers), Toronto (waterfront skyline), Washington D.C. (Capitol with city context), Manchester (urban street with buildings), London (Big Ben with city), Quebec (Château with city)
+     - **Types of acceptable images:**
+       - City skylines with many buildings
+       - Waterfront cityscapes
+       - Urban landscapes with multiple buildings
+       - Landmarks with city context showing many buildings
+     - **PRIORITY ORDER (ONLY USE THESE WORKING SOURCES):**
+       1. **Official city/tourism websites** with cityscape images - city.gov, visitcity.com, tourism sites
+       2. **Travel/tourism sites** - TripAdvisor, official tourism boards (cityscape views)
+       3. **News articles or features** about the city with cityscape images
+       4. **Reputable sources** - Official sites, credible tourism/travel sites
+     - The URL can be a **page URL** with cityscape images OR a direct image URL if from a credible source
+     - The URL MUST be publicly accessible
+     - **FORBIDDEN:** upload.wikimedia.org, images.fineartamerica.com
+     - **REQUIRED:** Image must show cityscape with many buildings (skyline/urban landscape), not single building
+   - Both images are REQUIRED - Prioritize official .edu sites and credible page URLs over direct image links
 
 9. **Conciseness & Formatting (CRITICAL):**
    - **Be concise.** Remove fluff words like "approx.", "approximately", "total of", "estimated to be".
@@ -94,13 +146,47 @@ Before generating the final JSON, perform these verification checks:
 - *Check:* Do I have "diversity_direct" (students of color %) and "tuition_direct" as single standalone figures?
 - *Action:* Ensure diversity is like "42%" and tuition like "$24000" (no extra words).
 
-**Step 7 - Campus Image:**
-- *Check:* Did I capture a real, recent campus image URL?
-- *Action:* Prefer official university media; if unavailable, mark as "Not found".
+**Step 7 - Ratings Validation:**
+- *Check:* Do I have "university_rating" and "city_rating" as single numbers (1-5)?
+- *Action:* 
+  - Research university quality: rankings, student satisfaction, facilities, outcomes → assign rating 1-5
+  - Research city quality: livability, safety, cost, culture, student experience → assign rating 1-5
+  - Ensure ratings are just numbers (e.g., "4") NOT "4/5" or "4 out of 5"
+
+**Step 8 - Image Verification (CRITICAL):**
+- *Check:* Did I find real, accessible URLs for both "university_image" and "city_image"? Are they REAL DIRECT PHOTOS?
+- *Action:* 
+  - **ABSOLUTE REQUIREMENT:** Images MUST be REAL, DIRECT PHOTOGRAPHS - NOT framed, NOT on merchandise, NOT rendered/artificial
+  - **FORBIDDEN IMAGE TYPES:**
+    - Images in picture frames
+    - Images printed on shirts, mugs, posters, merchandise
+    - Rendered/3D/computer-generated images
+    - Illustrations, drawings, paintings, artwork
+    - Mockups, templates, placeholders
+  - **FORBIDDEN SOURCES (NEVER USE):**
+    - upload.wikimedia.org, wikimedia.org, Wikimedia Commons - returns 404 errors
+    - images.fineartamerica.com - returns Access Denied errors
+    - Any URL that contains "/v1/AUTH_" or authentication tokens
+    - Any site that requires login or returns access errors
+  - **PRIORITY #1:** Official university websites (.edu) - these are MOST RELIABLE
+    - Search: "[University Name].edu visit" or "[University Name].edu campus" or "[University Name].edu about"
+    - Look for pages like: /visit/, /campus/, /about/, /virtual-tour/
+    - Return the PAGE URL (e.g., https://www.towson.edu/visit/ or https://shadygrove.usmd.edu/universities/towson-university)
+    - Example good URLs: towson.edu/visit/, university.edu/campus/, accruent.com/resources/case-studies/towson
+  - For university image: Search "[University Name].edu visit" or "[University Name] official campus page"
+  - For city image: Search "[City Name] cityscape" or "[City Name] city view many buildings" or "[City Name] official tourism cityscape"
+  - **URL Validation:**
+    - **Preferred:** Official .edu page URLs (like towson.edu/visit/) that display campus images
+    - **Also acceptable:** Direct image URLs from credible sources (Unsplash, Pexels, news sites)
+    - URL must NOT contain "wikimedia" or "fineartamerica" in domain
+    - URL must NOT contain "/v1/AUTH_" or authentication paths
+    - **ONLY use URLs from:** Official .edu domains (PRIORITY), case study sites, official tourism sites, credible news sites
+    - **NEVER use:** Wikimedia Commons, FineArtAmerica, or any site that returns access errors
+  - Both fields are REQUIRED - prioritize official .edu page URLs above all other sources
 
 **Step 8 - Final Consistency Check:**
-- *Check:* Do all monetary values use consistent currency?
-- *Action:* Standardize before final output.
+- *Check:* Do all monetary values use consistent currency? Are "university_image" and "city_image" present? Does city_image show a cityscape with many buildings?
+- *Action:* Standardize before final output. Ensure both image URLs are included. Verify city image shows cityscape (many buildings), not single building.
 
 ---
 
@@ -123,11 +209,12 @@ You must return a JSON object that matches this exact schema:
 BEGIN EXTRACTION NOW.`;
 
 class GeminiService {
-  constructor(apiKey) {
+  constructor(apiKey, imageSearchService = null) {
     if (!apiKey) {
       throw new Error("GEMINI_API_KEY is required");
     }
     this.genAI = new GoogleGenerativeAI(apiKey);
+    this.imageSearchService = imageSearchService;
   }
 
   /**
@@ -265,9 +352,21 @@ class GeminiService {
           type: "string",
           description: "Single tuition figure only, e.g. '$24000' (no words, just the value).",
         },
-        campus_image_url: {
+        university_image: {
           type: "string",
-          description: "Direct URL to a real, current campus image (prefer official .edu or reputable source). Use 'Not found' if unavailable.",
+          description: "URL to a high-quality REAL DIRECT PHOTOGRAPH of a distinctive, recognizable campus building specific to this university. Must be a real photo, NOT framed, NOT on merchandise (shirts/mugs/posters), NOT rendered/artificial. Must show the actual distinctive building(s) of this specific university (e.g., grand stone buildings with ivy, red-brick towers, modern glass buildings, traditional architecture). Examples: University of Illinois (stone building with ivy), Howard University (red-brick tower), NYU (modern glass building). PRIORITY: Official .edu page URLs with images (e.g., towson.edu/visit/, university.edu/campus/), case study pages, or partnership sites. Also acceptable: Direct image URLs from credible sources. FORBIDDEN: Wikimedia Commons (upload.wikimedia.org), FineArtAmerica (images.fineartamerica.com), framed images, merchandise, rendered images. REQUIRED.",
+        },
+        city_image: {
+          type: "string",
+          description: "URL to a high-quality REAL DIRECT PHOTOGRAPH cityscape image showing many buildings of the city where the university is located. Must be a real photo, NOT framed, NOT on merchandise (shirts/mugs/posters), NOT rendered/artificial. Must show a city view with lots of buildings visible (cityscape/urban landscape/skyline), not a single building. Examples: Chicago (skyline with skyscrapers), Toronto (waterfront skyline), Washington D.C. (Capitol with city context), London (Big Ben with city). Types: city skylines, waterfront cityscapes, urban landscapes with multiple buildings, landmarks with city context. PRIORITY: Official city/tourism page URLs with images. Also acceptable: Direct image URLs from credible sources. FORBIDDEN: Wikimedia Commons (upload.wikimedia.org), FineArtAmerica (images.fineartamerica.com), framed images, merchandise, rendered images. REQUIRED.",
+        },
+        university_rating: {
+          type: "string",
+          description: "Overall rating of the university on a scale of 1-5. Provide only the number (e.g., '4', '5', '3'). Based on academic reputation, student satisfaction, facilities, and overall quality. REQUIRED.",
+        },
+        city_rating: {
+          type: "string",
+          description: "Overall rating of the city on a scale of 1-5. Provide only the number (e.g., '4', '5', '3'). Based on livability, safety, cost of living, cultural opportunities, and overall quality of life for students. REQUIRED.",
         },
           scholarships: {
             type: "array",
@@ -397,6 +496,10 @@ class GeminiService {
           "cost_of_attendance",
           "diversity_direct",
           "tuition_direct",
+          "university_image",
+          "city_image",
+          "university_rating",
+          "city_rating",
           "data_verification_notes",
         ],
       };
@@ -415,6 +518,7 @@ class GeminiService {
         .replace("{{JSON_SCHEMA}}", JSON.stringify(jsonSchema, null, 2));
 
       // Initialize model with Google Search tool enabled and response schema
+      // models/gemini-3-pro-preview
       // Note: The tool name may vary based on SDK version - try both googleSearch and google_search
       const model = this.genAI.getGenerativeModel({
         model: "gemini-3-pro-preview",
@@ -537,6 +641,47 @@ class GeminiService {
       console.log("\n=== VALIDATED DATA ===");
       console.log(JSON.stringify(validatedData, null, 2));
       console.log("=====================\n");
+
+      // Add image search if available
+      if (this.imageSearchService) {
+        console.log('\n=== FETCHING IMAGES VIA GOOGLE CUSTOM SEARCH ===');
+        
+        // Search for university image
+        const universityImage = await this.imageSearchService.searchUniversityImage(
+          validatedData.university
+        );
+        
+        // Search for city image
+        const cityImage = await this.imageSearchService.searchCityImage(
+          validatedData.location.city,
+          validatedData.location.country
+        );
+
+        // Override Gemini's images with Google CSE results
+        if (universityImage) {
+          validatedData.university_image = universityImage;
+          console.log('✅ Using Google CSE university image');
+          console.log(`   📍 University image URL: ${universityImage}`);
+        } else {
+          console.log('⚠️  Keeping Gemini\'s university image (Google CSE found nothing)');
+          if (validatedData.university_image) {
+            console.log(`   📍 University image URL: ${validatedData.university_image}`);
+          }
+        }
+
+        if (cityImage) {
+          validatedData.city_image = cityImage;
+          console.log('✅ Using Google CSE city image');
+          console.log(`   📍 City image URL: ${cityImage}`);
+        } else {
+          console.log('⚠️  Keeping Gemini\'s city image (Google CSE found nothing)');
+          if (validatedData.city_image) {
+            console.log(`   📍 City image URL: ${validatedData.city_image}`);
+          }
+        }
+
+        console.log('=============================================\n');
+      }
 
       return validatedData;
     } catch (error) {

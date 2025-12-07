@@ -1,6 +1,7 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const { GeminiService } = require('./geminiService');
+const { ImageSearchService } = require('./imageSearchService');
 const { UniversityController } = require('./universityController');
 
 // Load environment variables
@@ -17,14 +18,27 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', service: 'AfroRank Data Extractor' });
 });
 
-// Initialize Gemini Service
+// Validate environment variables
 const geminiApiKey = process.env.GEMINI_API_KEY;
+const googleCseApiKey = process.env.GOOGLE_CSE_API_KEY;
+const googleCseId = process.env.GOOGLE_CSE_ID;
+
 if (!geminiApiKey) {
   console.error('ERROR: GEMINI_API_KEY is not set in environment variables');
   process.exit(1);
 }
 
-const geminiService = new GeminiService(geminiApiKey);
+// Initialize services
+const imageSearchService = (googleCseApiKey && googleCseId)
+  ? new ImageSearchService(googleCseApiKey, googleCseId)
+  : null;
+
+if (!imageSearchService) {
+  console.warn('⚠️  WARNING: Google Custom Search API not configured. Images will come from Gemini only.');
+  console.warn('   Set GOOGLE_CSE_API_KEY and GOOGLE_CSE_ID in .env to enable image search.');
+}
+
+const geminiService = new GeminiService(geminiApiKey, imageSearchService);
 const universityController = new UniversityController(geminiService);
 
 // University extraction endpoint
@@ -44,5 +58,8 @@ app.listen(PORT, () => {
   console.log(` AfroRank Data Extractor API running on port ${PORT}`);
   console.log(` Health check: http://localhost:${PORT}/health`);
   console.log(` Extract endpoint: POST http://localhost:${PORT}/extract`);
+  if (imageSearchService) {
+    console.log(' ✅ Google Custom Search API: ENABLED');
+  }
 });
 
