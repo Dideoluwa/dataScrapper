@@ -4,6 +4,83 @@ class ImageSearchService {
       this.searchEngineId = searchEngineId;
       this.baseUrl = "https://www.googleapis.com/customsearch/v1";
     }
+
+    /**
+     * Validate if a URL is a direct image URL (not a page URL)
+     * Returns true if it's a direct image, false otherwise
+     */
+    async isValidImageUrl(url) {
+      if (!url || typeof url !== 'string') return false;
+
+      const lowerUrl = url.toLowerCase();
+      
+      // Check for image file extensions
+      const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.tiff', '.tif'];
+      const hasImageExtension = imageExtensions.some(ext => lowerUrl.includes(ext));
+      
+      // Check for common image URL patterns (e.g., /image/, /img/, /photo/, /picture/)
+      const imagePathPatterns = ['/image/', '/img/', '/photo/', '/picture/', '/images/', '/photos/', '/pictures/'];
+      const hasImagePath = imagePathPatterns.some(pattern => lowerUrl.includes(pattern));
+      
+      // Check for common image CDN patterns
+      const imageCdnPatterns = ['i.imgur.com', 'cdn.', 'static.', 'assets.', 'media.', 'uploads/'];
+      const hasImageCdn = imageCdnPatterns.some(pattern => lowerUrl.includes(pattern));
+      
+      // If it has an image extension, it's likely a direct image
+      if (hasImageExtension) {
+        // But exclude .svg if it's in the forbidden list (we already filter those)
+        if (lowerUrl.endsWith('.svg')) return false;
+        return true;
+      }
+      
+      // If it has image path patterns or CDN patterns, check the content-type
+      if (hasImagePath || hasImageCdn) {
+        try {
+          // Make a HEAD request to check content-type
+          const response = await fetch(url, { method: 'HEAD', redirect: 'follow' });
+          const contentType = response.headers.get('content-type') || '';
+          
+          // Check if content-type indicates an image
+          if (contentType.startsWith('image/')) {
+            return true;
+          }
+          
+          // If content-type is HTML, it's a page URL, not an image
+          if (contentType.includes('text/html') || contentType.includes('application/')) {
+            console.log(`   ⚠️  URL is a page, not an image (content-type: ${contentType}): ${url}`);
+            return false;
+          }
+        } catch (error) {
+          // If we can't check, be conservative and reject it
+          console.log(`   ⚠️  Could not validate image URL (${error.message}): ${url}`);
+          return false;
+        }
+      }
+      
+      // If it doesn't match any pattern, check content-type as last resort
+      try {
+        const response = await fetch(url, { method: 'HEAD', redirect: 'follow' });
+        const contentType = response.headers.get('content-type') || '';
+        
+        if (contentType.startsWith('image/')) {
+          return true;
+        }
+        
+        // If it's HTML or application, it's definitely not a direct image
+        if (contentType.includes('text/html') || contentType.includes('application/')) {
+          console.log(`   ⚠️  URL is a page, not an image (content-type: ${contentType}): ${url}`);
+          return false;
+        }
+      } catch (error) {
+        // If we can't verify, reject it to be safe
+        console.log(`   ⚠️  Could not validate image URL (${error.message}): ${url}`);
+        return false;
+      }
+      
+      // Default: reject if we can't confirm it's an image
+      console.log(`   ⚠️  URL does not appear to be a direct image URL: ${url}`);
+      return false;
+    }
   
     /**
      * Search for the "Hero Shot" of a university campus.
@@ -273,7 +350,15 @@ class ImageSearchService {
                    continue;
                }
             }
-  
+
+            // 7. CRITICAL: Validate that URL is a direct image URL, not a page URL
+            console.log(`   🔍 Validating image URL...`);
+            const isValidImage = await this.isValidImageUrl(imageUrl);
+            if (!isValidImage) {
+              console.log(`   ⚠️  Skipping: URL is not a direct image URL (likely a page URL): ${imageUrl}`);
+              continue;
+            }
+
             console.log(`✅ Found acceptable ${type} image: ${imageUrl}`);
             if (contextLink) {
               console.log(`   📍 Image source: ${contextLink}`);
