@@ -1,6 +1,6 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { zodToJsonSchema } = require("zod-to-json-schema");
-const { UniversitySchema } = require("./schemas");
+const { UniversitySchema, ALLOWED_PROGRAMS } = require("./schemas");
 
 
 const SYSTEM_INSTRUCTION = `You are an expert university data analyst for "AfroRank," a platform helping African students find universities abroad. Your primary goal is to extract a highly accurate, verified, and comprehensive JSON profile for the specified university, using data that is up-to-date as of {{CURRENT_DATE}}.
@@ -100,7 +100,35 @@ const SYSTEM_INSTRUCTION = `You are an expert university data analyst for "AfroR
      - **REQUIRED:** Image must show cityscape with many buildings (skyline/urban landscape), not single building
    - Both images are REQUIRED - Prioritize official .edu sites and credible page URLs over direct image links
 
-9. **Conciseness & Formatting (CRITICAL):**
+10. **New Matching Algorithm Fields (CRITICAL):**
+    - **tuition_numeric:** Extract the annual tuition as a plain integer in USD. No currency symbols, commas, or text. Parse from cost_of_attendance.tuition or tuition_direct. Example: 32000, 15500, 48000. If unavailable: null.
+    - **total_cost_numeric:** Total annual cost of attendance (tuition + room + board + fees) as a plain integer in USD. Parse from cost_of_attendance.average_total, or sum up components if only individual values are available. Example: 52000, 28000. If unavailable: null.
+    - **programs:** Academic programs this university offers. ONLY include values from this predefined list — do NOT invent values:
+      Engineering & Technology: Mechanical, Civil, Electrical, Chemical, Aerospace, Biomedical Engineering
+      Computer Science & IT: Software Engineering, Data Science, AI/ML, Cybersecurity, Information Systems
+      Business & Management: Accounting, Finance, Marketing, Entrepreneurship, Supply Chain, MBA
+      Health & Life Sciences: Medicine, Nursing, Pharmacy, Public Health, Dentistry, Physiotherapy
+      Natural Sciences: Biology, Chemistry, Physics, Mathematics, Environmental Science
+      Social Sciences: Psychology, Sociology, Political Science, Economics, Anthropology
+      Arts & Humanities: History, Philosophy, Literature, Languages, Religious Studies, Music, Fine Art
+      Law & Legal Studies: Law (LLB/JD), International Law, Criminal Justice, Human Rights
+      Education: Teaching, Curriculum Design, Educational Psychology, Special Education
+      Architecture & Design: Architecture, Urban Planning, Interior Design, Industrial Design
+      Communications & Media: Journalism, Film, Public Relations, Advertising, Digital Media
+      Agriculture & Environment: Agronomy, Food Science, Forestry, Sustainability, Marine Science
+      If unavailable: empty array [].
+    - **acceptance_rate_numeric:** Acceptance rate as a decimal between 0 and 1. Example: 0.67 (for 67%), 0.12 (for 12%). Parse from the same source used for admissions.acceptance_rate. If unavailable: null.
+    - **min_gpa:** Minimum GPA required or recommended for admission, on a 4.0 scale. Look for "minimum GPA", "GPA requirement", etc. Example: 3.0, 2.5. If unavailable: null.
+    - **campus_setting:** Normalized campus environment. Must be exactly one of: "urban", "suburban", or "rural". Derive from basic_info.campus_type and basic_info.setting: Urban/City/Metropolitan → "urban", Suburban/Town → "suburban", Rural/Small town → "rural". If ambiguous: null.
+    - **international_students_pct:** International student percentage as a decimal between 0 and 1. Example: 0.28 (for 28%). Parse from basic_info.international_students. If unavailable: null.
+    - **climate:** General climate classification. Must be exactly one of: "warm", "moderate", or "cold". Derive from the university's geographic location:
+      Warm: Southern US (Florida, Texas, Arizona, California, Georgia, Louisiana, etc.), warm regions elsewhere
+      Moderate: Mid-Atlantic, Pacific Northwest (Virginia, North Carolina, Oregon, Washington, etc.), Southern England
+      Cold: Northern US (Michigan, Minnesota, New York, Illinois, etc.), most of Canada, Scotland/Northern England
+      If unavailable: null.
+    - **has_african_student_association:** Whether the university has an African Student Association (ASA), African Students' Union, or similar organization. Check student organizations/clubs for keywords like "African Student", "ASA", "African Union", "African Society". If unable to determine: null.
+
+11. **Conciseness & Formatting (CRITICAL):**
    - **Be concise.** Remove fluff words like "approx.", "approximately", "total of", "estimated to be".
    - **Format:** Use symbols and direct numbers.
      - BAD: "There are over 3,000 international students from more than 120 countries which is about 13%."
@@ -369,6 +397,22 @@ class GeminiService {
             type: "string",
             description: "Full name of the university",
           },
+          // --- NEW matching algorithm fields (top-level) ---
+          tuition_numeric: {
+            type: "number",
+            nullable: true,
+            description: "Annual tuition as a plain integer in USD. No currency symbols, commas, or text. Example: 32000, 15500. If unavailable: null.",
+          },
+          total_cost_numeric: {
+            type: "number",
+            nullable: true,
+            description: "Total annual cost of attendance (tuition + room + board + fees) as a plain integer in USD. Example: 52000. If unavailable: null.",
+          },
+          programs: {
+            type: "array",
+            items: { type: "string" },
+            description: "Academic programs this university offers. You MUST select ALL applicable programs from this list — do NOT invent values, but DO include every program the university offers from: Mechanical, Civil, Electrical, Chemical, Aerospace, Biomedical Engineering, Software Engineering, Data Science, AI/ML, Cybersecurity, Information Systems, Accounting, Finance, Marketing, Entrepreneurship, Supply Chain, MBA, Medicine, Nursing, Pharmacy, Public Health, Dentistry, Physiotherapy, Biology, Chemistry, Physics, Mathematics, Environmental Science, Psychology, Sociology, Political Science, Economics, Anthropology, History, Philosophy, Literature, Languages, Religious Studies, Music, Fine Art, Law (LLB/JD), International Law, Criminal Justice, Human Rights, Teaching, Curriculum Design, Educational Psychology, Special Education, Architecture, Urban Planning, Interior Design, Industrial Design, Journalism, Film, Public Relations, Advertising, Digital Media, Agronomy, Food Science, Forestry, Sustainability, Marine Science. A major research university will typically match 20-40+ of these. If truly unavailable: empty array [].",
+          },
           location: {
             type: "object",
             properties: {
@@ -376,6 +420,13 @@ class GeminiService {
               state: { type: "string" },
               country: { type: "string" },
               source: { type: "string" },
+              // --- NEW ---
+              climate: {
+                type: "string",
+                enum: ["warm", "moderate", "cold"],
+                nullable: true,
+                description: "General climate classification. Must be exactly 'warm', 'moderate', or 'cold'. If unavailable: null.",
+              },
             },
             required: ["city", "country", "source"],
           },
@@ -402,6 +453,18 @@ class GeminiService {
                   "List of alumni including African innovators if found",
               },
               source: { type: "string" },
+              // --- NEW ---
+              campus_setting: {
+                type: "string",
+                enum: ["urban", "suburban", "rural"],
+                nullable: true,
+                description: "Normalized campus environment. Must be exactly 'urban', 'suburban', or 'rural'. Derive from campus_type/setting. If ambiguous: null.",
+              },
+              international_students_pct: {
+                type: "number",
+                nullable: true,
+                description: "International student percentage as a decimal between 0 and 1. Example: 0.28 for 28%. If unavailable: null.",
+              },
             },
             required: ["founded", "website", "source"],
           },
@@ -501,6 +564,17 @@ class GeminiService {
                 },
               },
               source: { type: "string" },
+              // --- NEW ---
+              acceptance_rate_numeric: {
+                type: "number",
+                nullable: true,
+                description: "Acceptance rate as a decimal between 0 and 1. Example: 0.67 for 67%. If unavailable: null.",
+              },
+              min_gpa: {
+                type: "number",
+                nullable: true,
+                description: "Minimum GPA required or recommended for admission, on a 4.0 scale. Example: 3.0, 2.5. If unavailable: null.",
+              },
             },
           },
           campus_life: {
@@ -517,6 +591,12 @@ class GeminiService {
                 description: "Focus on African/Black student associations",
               },
               source: { type: "string" },
+              // --- NEW ---
+              has_african_student_association: {
+                type: "boolean",
+                nullable: true,
+                description: "Whether the university has an African Student Association (ASA), African Students' Union, or similar organization. If unable to determine: null.",
+              },
             },
           },
           roi_outcomes: {
@@ -577,6 +657,9 @@ class GeminiService {
           "city_image",
           "university_rating",
           "city_rating",
+          "tuition_numeric",
+          "total_cost_numeric",
+          "programs",
           "data_verification_notes",
         ],
       };
@@ -719,6 +802,20 @@ class GeminiService {
       console.log(JSON.stringify(validatedData, null, 2));
       console.log("=====================\n");
 
+      // ========== POST-PROCESSING: Derive new fields from existing data ==========
+      this._postProcessNewFields(validatedData);
+      console.log("\n=== POST-PROCESSED DATA (new fields) ===");
+      console.log("tuition_numeric:", validatedData.tuition_numeric);
+      console.log("total_cost_numeric:", validatedData.total_cost_numeric);
+      console.log("programs:", validatedData.programs);
+      console.log("acceptance_rate_numeric:", validatedData.admissions?.acceptance_rate_numeric);
+      console.log("min_gpa:", validatedData.admissions?.min_gpa);
+      console.log("campus_setting:", validatedData.basic_info?.campus_setting);
+      console.log("international_students_pct:", validatedData.basic_info?.international_students_pct);
+      console.log("climate:", validatedData.location?.climate);
+      console.log("has_african_student_association:", validatedData.campus_life?.has_african_student_association);
+      console.log("=============================================\n");
+
       // Add image search if available
       if (this.imageSearchService) {
         console.log('\n=== FETCHING IMAGES VIA GOOGLE CUSTOM SEARCH ===');
@@ -789,6 +886,143 @@ class GeminiService {
         throw new Error(`Gemini extraction failed: ${error.message}`);
       }
       throw new Error("Gemini extraction failed: Unknown error");
+    }
+  }
+
+  /**
+   * Helper: Parse a numeric value from a currency/percentage string.
+   * Strips $, CAD, GBP, £, €, commas, and text. Returns number or null.
+   */
+  _parseNumericFromString(str) {
+    if (str == null || typeof str !== 'string') return null;
+    // Remove currency symbols and labels
+    let cleaned = str.replace(/[$£€]/g, '').replace(/\b(CAD|GBP|USD|EUR)\b/gi, '').trim();
+    // Remove commas
+    cleaned = cleaned.replace(/,/g, '');
+    // Extract first number (integer or decimal)
+    const match = cleaned.match(/[\d]+\.?[\d]*/);
+    if (!match) return null;
+    const num = parseFloat(match[0]);
+    return isNaN(num) ? null : num;
+  }
+
+  /**
+   * Helper: Parse a percentage string like "67%", "28%" into a decimal 0-1.
+   */
+  _parsePercentToDecimal(str) {
+    if (str == null || typeof str !== 'string') return null;
+    const match = str.match(/([\d]+\.?[\d]*)%/);
+    if (!match) return null;
+    const pct = parseFloat(match[1]);
+    if (isNaN(pct)) return null;
+    return Math.round((pct / 100) * 100) / 100; // 2 decimal places
+  }
+
+  /**
+   * Post-process validated data to derive/validate new matching algorithm fields.
+   * Mutates the data object in place.
+   */
+  _postProcessNewFields(data) {
+    // --- tuition_numeric ---
+    if (data.tuition_numeric == null) {
+      // Try tuition_direct first, then cost_of_attendance.tuition
+      const tuitionStr = data.tuition_direct || data.cost_of_attendance?.tuition;
+      const parsed = this._parseNumericFromString(tuitionStr);
+      data.tuition_numeric = parsed != null ? Math.round(parsed) : null;
+    } else {
+      data.tuition_numeric = Math.round(data.tuition_numeric);
+    }
+
+    // --- total_cost_numeric ---
+    if (data.total_cost_numeric == null) {
+      const totalStr = data.cost_of_attendance?.average_total;
+      const parsed = this._parseNumericFromString(totalStr);
+      data.total_cost_numeric = parsed != null ? Math.round(parsed) : null;
+    } else {
+      data.total_cost_numeric = Math.round(data.total_cost_numeric);
+    }
+
+    // --- programs: filter to allowed list only ---
+    if (Array.isArray(data.programs)) {
+      data.programs = data.programs.filter(p => ALLOWED_PROGRAMS.includes(p));
+    } else {
+      data.programs = [];
+    }
+
+    // --- acceptance_rate_numeric ---
+    if (data.admissions) {
+      if (data.admissions.acceptance_rate_numeric == null) {
+        const arStr = data.admissions.acceptance_rate;
+        const parsed = this._parsePercentToDecimal(arStr);
+        data.admissions.acceptance_rate_numeric = parsed;
+      }
+      // Ensure it's a valid decimal 0-1
+      if (data.admissions.acceptance_rate_numeric != null) {
+        if (data.admissions.acceptance_rate_numeric > 1) {
+          data.admissions.acceptance_rate_numeric = Math.round((data.admissions.acceptance_rate_numeric / 100) * 100) / 100;
+        }
+      }
+    }
+
+    // --- min_gpa: no fallback parsing, trust Gemini or null ---
+    // (already handled by schema)
+
+    // --- campus_setting ---
+    if (data.basic_info) {
+      if (data.basic_info.campus_setting == null) {
+        const setting = (data.basic_info.setting || '').toLowerCase();
+        const campusType = (data.basic_info.campus_type || '').toLowerCase();
+        const combined = `${setting} ${campusType}`;
+        if (/\b(urban|city|metropolitan)\b/.test(combined)) {
+          data.basic_info.campus_setting = 'urban';
+        } else if (/\b(suburban|town)\b/.test(combined)) {
+          data.basic_info.campus_setting = 'suburban';
+        } else if (/\b(rural|small\s*town)\b/.test(combined)) {
+          data.basic_info.campus_setting = 'rural';
+        }
+        // else stays null
+      }
+      // Validate enum
+      if (data.basic_info.campus_setting && !['urban', 'suburban', 'rural'].includes(data.basic_info.campus_setting)) {
+        data.basic_info.campus_setting = null;
+      }
+    }
+
+    // --- international_students_pct ---
+    if (data.basic_info) {
+      if (data.basic_info.international_students_pct == null) {
+        const intlStr = data.basic_info.international_students;
+        const parsed = this._parsePercentToDecimal(intlStr);
+        data.basic_info.international_students_pct = parsed;
+      }
+      // Ensure it's a valid decimal 0-1
+      if (data.basic_info.international_students_pct != null && data.basic_info.international_students_pct > 1) {
+        data.basic_info.international_students_pct = Math.round((data.basic_info.international_students_pct / 100) * 100) / 100;
+      }
+    }
+
+    // --- climate: no fallback (needs geographic knowledge), trust Gemini ---
+    if (data.location) {
+      if (data.location.climate && !['warm', 'moderate', 'cold'].includes(data.location.climate)) {
+        data.location.climate = null;
+      }
+    }
+
+    // --- has_african_student_association ---
+    if (data.campus_life) {
+      if (data.campus_life.has_african_student_association == null) {
+        // Try to derive from student_clubs array
+        const clubs = data.campus_life.student_clubs;
+        if (Array.isArray(clubs) && clubs.length > 0) {
+          const keywords = ['african student', 'asa', 'african union', 'african society', 'african association'];
+          const found = clubs.some(club => {
+            const lower = (club || '').toLowerCase();
+            return keywords.some(kw => lower.includes(kw));
+          });
+          data.campus_life.has_african_student_association = found;
+        }
+        // if clubs is empty or missing, leave as null
+      }
     }
   }
 }

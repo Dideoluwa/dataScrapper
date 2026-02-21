@@ -5,14 +5,49 @@ const { z } = require('zod');
  * Matches the exact desired output structure for AfroRank
  */
 
+// Allowed programs list for the matching algorithm
+const ALLOWED_PROGRAMS = [
+  // Engineering & Technology
+  'Mechanical', 'Civil', 'Electrical', 'Chemical', 'Aerospace', 'Biomedical Engineering',
+  // Computer Science & IT
+  'Software Engineering', 'Data Science', 'AI/ML', 'Cybersecurity', 'Information Systems',
+  // Business & Management
+  'Accounting', 'Finance', 'Marketing', 'Entrepreneurship', 'Supply Chain', 'MBA',
+  // Health & Life Sciences
+  'Medicine', 'Nursing', 'Pharmacy', 'Public Health', 'Dentistry', 'Physiotherapy',
+  // Natural Sciences
+  'Biology', 'Chemistry', 'Physics', 'Mathematics', 'Environmental Science',
+  // Social Sciences
+  'Psychology', 'Sociology', 'Political Science', 'Economics', 'Anthropology',
+  // Arts & Humanities
+  'History', 'Philosophy', 'Literature', 'Languages', 'Religious Studies', 'Music', 'Fine Art',
+  // Law & Legal Studies
+  'Law (LLB/JD)', 'International Law', 'Criminal Justice', 'Human Rights',
+  // Education
+  'Teaching', 'Curriculum Design', 'Educational Psychology', 'Special Education',
+  // Architecture & Design
+  'Architecture', 'Urban Planning', 'Interior Design', 'Industrial Design',
+  // Communications & Media
+  'Journalism', 'Film', 'Public Relations', 'Advertising', 'Digital Media',
+  // Agriculture & Environment
+  'Agronomy', 'Food Science', 'Forestry', 'Sustainability', 'Marine Science',
+];
+
 const UniversitySchema = z.object({
   university: z.string().describe('Full name of the university'),
+
+  // --- NEW matching algorithm fields (top-level) ---
+  tuition_numeric: z.number().nullable().optional().describe('Annual tuition as a plain integer in USD. No currency symbols, commas, or text.'),
+  total_cost_numeric: z.number().nullable().optional().describe('Total annual cost of attendance as a plain integer in USD.'),
+  programs: z.array(z.string()).optional().default([]).describe('Academic programs from the predefined allowed list.'),
 
   location: z.object({
     city: z.string(),
     state: z.string().optional(),
     country: z.string(),
     source: z.string().describe('URL where location was verified'),
+    // --- NEW ---
+    climate: z.enum(['warm', 'moderate', 'cold']).nullable().optional().describe('General climate classification: warm, moderate, or cold.'),
   }),
 
   basic_info: z.object({
@@ -25,6 +60,9 @@ const UniversitySchema = z.object({
     international_students: z.string().optional().describe('e.g. ~11,000 (from 120+ countries)'),
     notable_alumni: z.array(z.string()).optional().describe('List of alumni including African innovators'),
     source: z.string(),
+    // --- NEW ---
+    campus_setting: z.enum(['urban', 'suburban', 'rural']).nullable().optional().describe('Normalized campus environment: urban, suburban, or rural.'),
+    international_students_pct: z.number().nullable().optional().describe('International student percentage as a decimal between 0 and 1.'),
   }),
 
   cost_of_attendance: z.object({
@@ -88,6 +126,9 @@ const UniversitySchema = z.object({
       documents: z.array(z.string()).optional(),
     }).optional(),
     source: z.string(),
+    // --- NEW ---
+    acceptance_rate_numeric: z.number().nullable().optional().describe('Acceptance rate as a decimal between 0 and 1.'),
+    min_gpa: z.number().nullable().optional().describe('Minimum GPA required or recommended, on a 4.0 scale.'),
   }),
 
   campus_life: z.object({ // Renamed from student_life
@@ -97,6 +138,8 @@ const UniversitySchema = z.object({
     diversity: z.string().optional(),
     student_clubs: z.array(z.string()).optional().describe('Focus on African/Black student associations'),
     source: z.string().optional(),
+    // --- NEW ---
+    has_african_student_association: z.boolean().nullable().optional().describe('Whether the university has an African Student Association or similar organization.'),
   }).optional(),
 
   roi_outcomes: z.object({
@@ -125,4 +168,4 @@ const UniversitySchema = z.object({
   ),
 });
 
-module.exports = { UniversitySchema };
+module.exports = { UniversitySchema, ALLOWED_PROGRAMS };
