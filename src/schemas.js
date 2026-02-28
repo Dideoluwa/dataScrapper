@@ -208,6 +208,10 @@ const CitySchema = z.object({
     .describe('Average hourly pay for student part-time jobs in this city (in local currency). From BLS wage data, state/province minimum wage, or Indeed/Glassdoor student job averages.'),
   student_happiness_score: z.number().nullable().optional()
     .describe('Student happiness/satisfaction percentage (0-100). From Niche.com city grades, student review aggregates, or livability indexes.'),
+  top_3_most_expensive_cities_in_region: z.array(z.string()).optional().default([])
+    .describe('List of the top 3 most expensive cities for students in the same state/province (or country if small). Just the city names.'),
+  top_3_most_affordable_cities_in_region: z.array(z.string()).optional().default([])
+    .describe('List of the top 3 most affordable cities for students in the same state/province (or country if small). Just the city names.'),
 
   // University count
   number_of_universities: z.number().int()

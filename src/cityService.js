@@ -53,7 +53,9 @@ const CITY_SYSTEM_INSTRUCTION = `You are an expert cost-of-living analyst for "A
 
 9. **CLIMATE:** Classify as exactly one of: "warm", "moderate", "cold" based on geographic location.
 
-10. **CONSISTENCY CHECK:** The average_monthly_cost_of_living MUST equal the sum of: average_rent + average_food_cost + transportation + utilities + internet_and_subscriptions + miscellaneous.
+10. **REGIONAL CONTEXT:** Identify the top 3 most expensive and top 3 most affordable cities for students in the exact same state/province (or country if it's a small country without states). Return JUST the city names as an array of strings.
+
+11. **CONSISTENCY CHECK:** The average_monthly_cost_of_living MUST equal the sum of: average_rent + average_food_cost + transportation + utilities + internet_and_subscriptions + miscellaneous.
 
 ---
 
@@ -241,6 +243,16 @@ class CityService {
             type: "number",
             nullable: true,
             description: "Student happiness percentage 0-100.",
+          },
+          top_3_most_expensive_cities_in_region: {
+            type: "array",
+            items: { type: "string" },
+            description: "Top 3 most expensive cities for students in the same state/region. Just city names.",
+          },
+          top_3_most_affordable_cities_in_region: {
+            type: "array",
+            items: { type: "string" },
+            description: "Top 3 most affordable cities for students in the same state/region. Just city names.",
           },
           number_of_universities: {
             type: "integer",
