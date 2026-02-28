@@ -1,8 +1,10 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const { GeminiService } = require('./geminiService');
+const { CityService } = require('./cityService');
 const { ImageSearchService } = require('./imageSearchService');
 const { UniversityController } = require('./universityController');
+const { CityController } = require('./cityController');
 
 // Load environment variables
 dotenv.config();
@@ -39,10 +41,15 @@ if (!imageSearchService) {
 }
 
 const geminiService = new GeminiService(geminiApiKey, imageSearchService);
+const cityService = new CityService(geminiApiKey, imageSearchService);
 const universityController = new UniversityController(geminiService);
+const cityController = new CityController(cityService);
 
 // University extraction endpoint
 app.post('/extract', universityController.extract);
+
+// City data extraction endpoint
+app.post('/extract-city', cityController.extract);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -57,7 +64,8 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(` AfroRank Data Extractor API running on port ${PORT}`);
   console.log(` Health check: http://localhost:${PORT}/health`);
-  console.log(` Extract endpoint: POST http://localhost:${PORT}/extract`);
+  console.log(` Extract university: POST http://localhost:${PORT}/extract`);
+  console.log(` Extract city: POST http://localhost:${PORT}/extract-city`);
   if (imageSearchService) {
     console.log(' ✅ Google Custom Search API: ENABLED');
   }

@@ -168,4 +168,60 @@ const UniversitySchema = z.object({
   ),
 });
 
-module.exports = { UniversitySchema, ALLOWED_PROGRAMS };
+// ========== City Data Schema ==========
+
+const CitySchema = z.object({
+  city: z.string().describe('City name'),
+  state: z.string().nullable().optional().describe('State or province (null for non-US/CA)'),
+  country: z.string().describe('Country name'),
+
+  // Visual & Identity
+  city_image: z
+    .string()
+    .describe('URL to a high-quality REAL DIRECT PHOTOGRAPH cityscape image showing many buildings of the city. Must be a real photo, NOT framed, NOT on merchandise, NOT rendered/artificial. Must show a city view with lots of buildings visible (cityscape/urban landscape/skyline). PRIORITY: Official city/tourism page URLs with images. FORBIDDEN: Wikimedia Commons, FineArtAmerica. REQUIRED.'),
+  city_rating: z
+    .string()
+    .describe('Overall rating of the city on a scale of 1-5. Provide only the number (e.g., "4"). Based on livability, safety, cost of living, cultural opportunities, and student-friendliness. REQUIRED.'),
+  climate: z.enum(['warm', 'moderate', 'cold']).nullable().optional()
+    .describe('General climate classification: warm, moderate, or cold.'),
+
+  // Cost of Living (monthly, student-focused, integers in base currency)
+  average_monthly_cost_of_living: z.number().int()
+    .describe('Total average monthly cost of living for a student. Should equal the sum of: rent + food + transportation + utilities + internet + miscellaneous.'),
+  average_rent: z.number().int()
+    .describe('Average monthly rent for a student in shared housing (1 bedroom in a shared apartment near campus). From Zillow, HUD Fair Market Rents, or university off-campus housing pages.'),
+  average_food_cost: z.number().int()
+    .describe('Average monthly food cost for a student (groceries + occasional dining). From USDA moderate food plan or Numbeo grocery index.'),
+  transportation: z.number().int()
+    .describe('Average monthly transportation cost for a student. Use student transit pass prices from local transit authority. From transit authority websites.'),
+  utilities: z.number().int()
+    .describe('Average monthly utilities (electricity, water, gas, heating) for a student share of a shared apartment. From EIA or local utility company rates.'),
+  internet_and_subscriptions: z.number().int()
+    .describe('Average monthly internet cost. From local ISP pricing or BroadbandNow.'),
+  miscellaneous: z.number().int()
+    .describe('Average monthly miscellaneous spending (personal care, entertainment, laundry, phone). From BLS Consumer Expenditure or Numbeo.'),
+  currency: z.string().default('USD')
+    .describe('Currency code for all monetary values (e.g., USD, CAD, GBP).'),
+
+  // Student Experience
+  average_part_time_job_pay: z.number().nullable().optional()
+    .describe('Average hourly pay for student part-time jobs in this city (in local currency). From BLS wage data, state/province minimum wage, or Indeed/Glassdoor student job averages.'),
+  student_happiness_score: z.number().nullable().optional()
+    .describe('Student happiness/satisfaction percentage (0-100). From Niche.com city grades, student review aggregates, or livability indexes.'),
+
+  // University count
+  number_of_universities: z.number().int()
+    .describe('Number of accredited universities/colleges in this city or metropolitan area. From NCES (National Center for Education Statistics) or state education boards.'),
+
+  // Source tracking
+  sources: z.array(z.object({
+    field: z.string().describe('Which data field this source supports'),
+    source_name: z.string().describe('Name of the source (e.g., "Zillow Rent Index", "MBTA")'),
+    source_url: z.string().describe('Publicly accessible URL'),
+  })).describe('Array of sources backing up each data point. REQUIRED for every monetary field.'),
+
+  data_notes: z.string()
+    .describe('Chain of thought: how was each value found? Any discrepancies between sources? Which academic year or date does the data reflect?'),
+});
+
+module.exports = { UniversitySchema, CitySchema, ALLOWED_PROGRAMS };
