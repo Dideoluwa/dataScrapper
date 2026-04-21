@@ -32,7 +32,7 @@ if (!geminiApiKey) {
 
 // Initialize services
 const imageSearchService = (googleCseApiKey && googleCseId)
-  ? new ImageSearchService(googleCseApiKey, googleCseId)
+  ? new ImageSearchService(googleCseApiKey, googleCseId, geminiApiKey)
   : null;
 
 if (!imageSearchService) {

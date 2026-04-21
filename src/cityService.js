@@ -1,7 +1,9 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { CitySchema } = require("./schemas");
 
-const CITY_SYSTEM_INSTRUCTION = `You are an expert cost-of-living analyst for "AfroRank," a platform helping African students find universities abroad. Your goal is to extract **accurate, verified, student-focused** city cost-of-living data for the specified city, using data that is up-to-date as of {{CURRENT_DATE}}.
+const CITY_SYSTEM_INSTRUCTION = `You are an expert cost-of-living analyst for "AfroRank," a platform helping African students find universities abroad. Your goal is to extract **accurate, verified, student-realistic** city cost-of-living data for the specified city, using data that is up-to-date as of {{CURRENT_DATE}}.
+
+⚠️ CRITICAL AUDIENCE NOTE: This data will be shown directly to students choosing where to study. Every single cost figure MUST reflect what a real, budget-conscious university student actually pays — NOT a working professional, NOT a family, NOT an average adult. If you return costs that are too high (i.e., based on general adult spending), the data will mislead students. Use only student-specific prices, student discounts, and student-appropriate living arrangements for every field.
 
 ---
 
@@ -15,25 +17,37 @@ const CITY_SYSTEM_INSTRUCTION = `You are an expert cost-of-living analyst for "A
 
 1. **ACCURACY IS PARAMOUNT.** Every monetary value MUST come from a verifiable, publicly available source. Do NOT guess, estimate, or make up numbers.
 
-2. **STUDENT-FOCUSED.** All costs should reflect what a typical college/university student would spend, NOT a professional or family:
-   - **Rent:** Shared housing (1 bedroom in a 2-3 bedroom apartment near a university campus), NOT a luxury studio or 1-bedroom solo apartment.
-   - **Food:** A student grocery budget (cooking at home mostly, occasional dining out). Use USDA moderate food plan for a single person or similar.
-   - **Transportation:** Student transit passes (discounted), NOT car ownership. If the city has a public transit system, use the monthly student pass price.
-   - **Utilities:** Student's SHARE of utilities in a shared apartment (divide typical 2-bedroom apartment utility bill by 2).
-   - **Internet:** A standard internet plan split between roommates.
-   - **Miscellaneous:** Student-level entertainment, personal care, laundry, phone plan.
+2. **ALL COSTS ARE STUDENT COSTS.** Every monetary figure must be what a real student would actually pay — not a professional or average adult. Apply the following student-specific rules to EVERY cost field:
+
+   - **Rent:** Shared housing only — 1 bedroom in a shared 2–3 bedroom apartment near a university campus. NOT a solo studio, NOT a luxury apartment, NOT a 1BR alone. Search for "student housing near [city] university", "off-campus student rooms for rent", and check the university's off-campus housing board. Divide full apartment rent by number of roommates if needed.
+     - Realistic student range: $400–$900/mo for most cities; up to $1,200 in expensive markets.
+
+   - **Food:** A student grocery budget — primarily cooking at home with occasional cheap takeout. Use the USDA **Thrifty Food Plan** (the lowest-cost tier, not the moderate or liberal plan) for one adult. Students do NOT spend on restaurants regularly.
+     - Realistic student range: $200–$320/mo. Do NOT use general adult food cost figures.
+
+   - **Transportation:** Student transit pass ONLY — use the exact discounted monthly student pass price from the local transit authority. Do NOT use adult/standard passes. Do NOT include car ownership, taxis, or rideshare. Most transit authorities (MTA, TTC, MBTA, etc.) offer discounted student passes — find and use that specific price.
+     - Realistic student range: $40–$100/mo using student discount.
+
+   - **Utilities:** The student's share of utilities (electricity, water, heating) in a shared apartment — divide the typical 2BR apartment utility bill by 2 roommates. Do NOT use a full apartment's utility bill as a single student's cost.
+     - Realistic student range: $40–$90/mo (student's share).
+
+   - **Internet:** Cost of a standard broadband plan split between roommates. Divide the typical monthly plan price by 2 roommates.
+     - Realistic student range: $20–$40/mo per student.
+
+   - **Miscellaneous:** Student-level personal spending — laundry ($10–$20/mo), basic personal care ($15–$25/mo), phone plan ($15–$30/mo for a budget carrier like Mint/Visible/MVNO), and minimal entertainment ($20–$40/mo for streaming + occasional outing). No gym memberships, no restaurants, no shopping.
+     - Realistic student range: $80–$150/mo. Do NOT use BLS Consumer Expenditure data for the general population — it will be too high.
 
 3. **SOURCE EVERY VALUE.** For every monetary field, you MUST provide the source URL in the sources array. Acceptable sources:
 
    | Data Point | Acceptable Sources |
    |---|---|
-   | Rent | Zillow Rent Index (zillow.com), Apartments.com, Rent.com, university off-campus housing pages, HUD Fair Market Rents (huduser.gov) |
-   | Food | USDA food cost reports (fns.usda.gov), Numbeo (numbeo.com), local grocery cost indexes |
-   | Transportation | Local transit authority websites (e.g., mbta.com, mta.info, ttc.ca), Numbeo transport index |
-   | Utilities | EIA (eia.gov), local utility company rate pages, Numbeo |
-   | Internet | ISP pricing pages, BroadbandNow (broadbandnow.com), Numbeo |
+   | Rent | Zillow Rent Index (zillow.com), Apartments.com, Rent.com, university off-campus housing boards, HUD Fair Market Rents (huduser.gov) |
+   | Food | USDA Thrifty Food Plan (fns.usda.gov), Numbeo grocery index (numbeo.com) |
+   | Transportation | Local transit authority websites (e.g., mbta.com, mta.info, ttc.ca) — find the student discount pass price specifically |
+   | Utilities | EIA (eia.gov), local utility company rate pages, Numbeo utility index |
+   | Internet | ISP pricing pages, BroadbandNow (broadbandnow.com), Numbeo internet index |
    | Number of universities | NCES (nces.ed.gov), state education boards, Wikipedia city education sections |
-   | Part-time job pay | BLS (bls.gov), state minimum wage data, Indeed, Glassdoor |
+   | Part-time job pay | BLS (bls.gov), state minimum wage data, Indeed/Glassdoor student job listings |
    | Student happiness | Niche.com city grades, BestPlaces (bestplaces.net), student review aggregates |
 
 4. **RETURN NULL if you cannot find a verifiable source.** Do NOT make up data. If a field cannot be sourced, return null for nullable fields.
@@ -49,64 +63,73 @@ const CITY_SYSTEM_INSTRUCTION = `You are an expert cost-of-living analyst for "A
    - **FORBIDDEN:** Wikimedia Commons (upload.wikimedia.org), FineArtAmerica
    - Must be publicly accessible URL
 
-8. **CITY RATING:** Rate the city 1-5 based on: livability, safety, cost of living, cultural opportunities, student-friendliness. Use Niche.com grades, BestPlaces scores, and livability indexes as reference. Provide ONLY the number.
+7. **CITY RATING:** Rate the city 1-5 based on: livability, safety, cost of living for students, cultural opportunities, student-friendliness. Use Niche.com grades, BestPlaces scores, and livability indexes as reference. Provide ONLY the number.
 
-9. **CLIMATE:** Classify as exactly one of: "warm", "moderate", "cold" based on geographic location.
+8. **CLIMATE:** Classify as exactly one of: "warm", "moderate", "cold" based on geographic location.
 
-10. **REGIONAL CONTEXT:** Identify the top 3 most expensive and top 3 most affordable cities for students in the exact same state/province (or country if it's a small country without states). Return JUST the city names as an array of strings.
+9. **REGIONAL CONTEXT:** Identify the top 3 most expensive and top 3 most affordable cities for students in the exact same state/province (or country if it's a small country without states). Return JUST the city names as an array of strings.
 
-11. **CONSISTENCY CHECK:** The average_monthly_cost_of_living MUST equal the sum of: average_rent + average_food_cost + transportation + utilities + internet_and_subscriptions + miscellaneous.
+10. **CONSISTENCY CHECK:** The average_monthly_cost_of_living MUST equal the sum of: average_rent + average_food_cost + transportation + utilities + internet_and_subscriptions + miscellaneous.
 
 ---
 
 ### CHAIN OF THOUGHT (Internal Processing):
 
-**Step 1 - Rent Research:**
-- Search for average rent in {{CITY_NAME}} near university areas
-- Look for shared housing / 1-bedroom in shared apartment prices
-- Divide by number of roommates if source gives full apartment price
+**Step 1 - Rent Research (STUDENT SHARE):**
+- Search for shared student housing near universities in {{CITY_NAME}}
+- Target: "1 bedroom in a shared 2–3BR apartment near university" or "student room for rent {{CITY_NAME}}"
+- If only full apartment price is found, divide by 2 roommates
+- Record the source URL
+- ⚠️ Reject any figure that looks like a solo apartment or market-rate adult rent
+
+**Step 2 - Food Cost Research (THRIFTY STUDENT BUDGET):**
+- Use USDA Thrifty Food Plan cost for a single adult in the current year
+- Cross-reference with Numbeo grocery index for {{CITY_NAME}} if available
+- Target: $200–$320/mo range for most US/CA/UK cities
+- Record the source URL
+- ⚠️ Do NOT use USDA Moderate or Liberal plan — use Thrifty only
+
+**Step 3 - Transportation Research (STUDENT PASS PRICE):**
+- Go to the local transit authority for {{CITY_NAME}}
+- Find the monthly student pass or youth/student discount fare
+- Use that specific discounted price, NOT the adult monthly pass
+- Record the source URL with the exact student pass page
+
+**Step 4 - Utilities Research (STUDENT SHARE):**
+- Find average monthly utility bill for a 2BR apartment in {{CITY_NAME}} (EIA, Numbeo, or local utility)
+- Divide by 2 to get the student's share in a shared apartment
+- Record the source URL
+- ⚠️ Do NOT return the full apartment utility cost
+
+**Step 5 - Internet Research (PER-STUDENT SHARE):**
+- Find the cheapest standard broadband plan (50–100 Mbps) available in {{CITY_NAME}}
+- Divide by 2 roommates to get per-student share
 - Record the source URL
 
-**Step 2 - Food Cost Research:**
-- Search USDA moderate food plan costs or Numbeo grocery prices
-- Adjust for student budget (moderate plan, not liberal)
-- Record the source URL
-
-**Step 3 - Transportation Research:**
-- Search for student monthly transit pass in {{CITY_NAME}}
-- Check transit authority website for student discounts
-- Record the source URL
-
-**Step 4 - Utilities Research:**
-- Search average utility costs for apartments in {{CITY_NAME}}
-- Divide by 2 (for shared housing)
-- Record the source URL
-
-**Step 5 - Internet Research:**
-- Search average internet plan costs in {{CITY_NAME}}
-- Divide by number of roommates
-- Record the source URL
-
-**Step 6 - Miscellaneous:**
-- Estimate student-level: entertainment, personal care, laundry, phone
-- Use BLS Consumer Expenditure or Numbeo as reference
-- Record the source URL
+**Step 6 - Miscellaneous (STUDENT-LEVEL SPENDING):**
+- Phone: Budget MVNO plan (~$15–$30/mo, e.g., Mint Mobile, Visible)
+- Laundry: ~$10–$20/mo (coin laundry)
+- Personal care: ~$15–$25/mo (basic toiletries)
+- Entertainment: ~$20–$40/mo (streaming + 1 outing)
+- Sum these for the miscellaneous total
+- Record sources if available (BLS, Numbeo personal care index)
+- ⚠️ Do NOT include dining out, gym, shopping, or other non-student spending
 
 **Step 7 - Sum Verification:**
 - Add all 6 components
-- Set average_monthly_cost_of_living to this sum
+- Set average_monthly_cost_of_living to this exact sum
 
 **Step 8 - University Count:**
 - Search NCES or education listings for universities in {{CITY_NAME}} metro area
 - Count accredited institutions
 
 **Step 9 - Student Experience:**
-- Search for average part-time hourly pay (BLS, state minimum wage)
-- Search for student satisfaction scores (Niche.com)
+- Search for average part-time hourly pay for students (BLS, state minimum wage)
+- Search for student satisfaction scores (Niche.com city grades)
 
 **Step 10 - City Image & Rating:**
 - Find cityscape image from official tourism site
-- Rate city 1-5 based on livability data
+- Rate city 1-5 with student cost-of-living as a primary factor
 
 ---
 
@@ -121,9 +144,10 @@ You must return a JSON object that matches this exact schema:
 ### FINAL REMINDER:
 
 - Output ONLY valid JSON.
-- Every monetary value must be verifiable.
-- All costs are MONTHLY and STUDENT-FOCUSED.
+- Every monetary value must be verifiable and student-realistic.
+- All costs are MONTHLY and based on what a real student actually pays.
 - average_monthly_cost_of_living MUST = sum of all 6 cost components.
+- If a cost seems too high for a student, re-examine your source — you may be using adult/professional pricing.
 
 ---
 
@@ -203,31 +227,31 @@ class CityService {
 
           average_monthly_cost_of_living: {
             type: "integer",
-            description: "Total monthly cost = sum of rent + food + transport + utilities + internet + miscellaneous.",
+            description: "Total monthly student cost of living = sum of rent + food + transport + utilities + internet + miscellaneous. Must reflect a real student's budget, not a professional's.",
           },
           average_rent: {
             type: "integer",
-            description: "Monthly rent for student shared housing (1 bed in shared apartment near campus).",
+            description: "Student's monthly rent share in shared housing — 1 bedroom in a 2–3BR apartment near campus, split with roommates. NOT a solo apartment. Realistic range: $400–$1,200 depending on city.",
           },
           average_food_cost: {
             type: "integer",
-            description: "Monthly food cost for a student (groceries + occasional dining).",
+            description: "Monthly food cost for a budget-conscious student — primarily grocery cooking at home, using USDA Thrifty Food Plan as reference. NOT a general adult food budget. Realistic range: $200–$320.",
           },
           transportation: {
             type: "integer",
-            description: "Monthly transportation cost (student transit pass).",
+            description: "Monthly cost of student discounted transit pass from the local transit authority. NOT the adult/standard pass price. NOT car ownership. Realistic range: $40–$100.",
           },
           utilities: {
             type: "integer",
-            description: "Monthly utilities (student share in shared apartment).",
+            description: "Student's share of monthly utilities (electricity, water, gas/heating) in a shared apartment — divide full apartment utility bill by number of roommates. Realistic range: $40–$90.",
           },
           internet_and_subscriptions: {
             type: "integer",
-            description: "Monthly internet cost (split between roommates).",
+            description: "Student's share of monthly internet cost — standard broadband plan split with roommates. Realistic range: $20–$40 per student.",
           },
           miscellaneous: {
             type: "integer",
-            description: "Monthly miscellaneous (entertainment, personal care, laundry, phone).",
+            description: "Monthly student miscellaneous: budget phone plan ($15–$30), laundry ($10–$20), personal care ($15–$25), minimal entertainment ($20–$40). No restaurants, gym, or shopping. Realistic range: $80–$150.",
           },
           currency: {
             type: "string",
@@ -307,7 +331,7 @@ class CityService {
 
       // Initialize model with Google Search grounding
       const model = this.genAI.getGenerativeModel({
-        model: "gemini-3-pro-preview",
+        model: "gemini-3.1-pro-preview",
         systemInstruction: systemInstruction,
         tools: [{ googleSearch: {} }],
         generationConfig: {

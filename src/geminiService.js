@@ -17,6 +17,12 @@ const SYSTEM_INSTRUCTION = `You are an expert university data analyst for "AfroR
 
 1. **Deep Verification:** Do not hallucinate data. If a specific field is not explicitly stated, output "Not reported" or null. Do not guess.
 
+1a. **EXACT NAME PRESERVATION (CRITICAL):** The "university" field in the JSON output MUST be set to exactly **"{{UNIVERSITY_NAME_OR_URL}}"** — the exact name as provided above. Do NOT rename, reformat, expand, or substitute it with an alternative official name, parent institution name, or legal entity name. Examples:
+   - Input: "Goldsmiths' College" → Output university field: "Goldsmiths' College" (NOT "Goldsmiths, University of London")
+   - Input: "MIT" → Output university field: "MIT" (NOT "Massachusetts Institute of Technology")
+   - Input: "UCL" → Output university field: "UCL" (NOT "University College London")
+   You may research the university under any name you like, but the final "university" field value MUST match the input name exactly.
+
 2. **Source Tracing:** For every major data section, you MUST identify the specific URL or section of the text where this information was found and include it in the 'source' field.
 
 3. **Currency & Context:** Ensure all monetary values are clearly labeled with their currency (USD, CAD, GBP).
@@ -66,21 +72,27 @@ const SYSTEM_INSTRUCTION = `You are an expert university data analyst for "AfroR
      - Rendered/3D/computer-generated images
      - Illustrations, drawings, paintings, artwork
      - Mockups, templates, placeholders
-   - **University Image:** MUST find a high-quality REAL PHOTO of a DISTINCTIVE, RECOGNIZABLE CAMPUS BUILDING specific to this university
-     - **CRITICAL:** Image must show the actual distinctive building(s) of this specific university (e.g., grand stone buildings with ivy, red-brick towers, modern glass buildings, traditional architecture)
-     - **Examples of good images:** University of Illinois (stone building with ivy), Howard University (red-brick tower), NYU (modern glass building), University of Toronto (curved roofline building)
-     - **PRIORITY ORDER (ONLY USE THESE WORKING SOURCES):** 
-       1. **Official university website (.edu domain) pages with images** - Examples: towson.edu/visit/, university.edu/campus/, university.edu/about/
-          - Look for pages like: "visit", "campus", "about", "virtual tour", "campus life"
-          - Return the PAGE URL (e.g., https://www.towson.edu/visit/ or https://www.accruent.com/resources/case-studies/towson)
-          - These are the MOST RELIABLE sources
-       2. **Official university system/partnership sites** - Examples: shadygrove.usmd.edu/universities/towson-university
-       3. **Case studies, news articles, or official features** about the university with campus images
-       4. **Reputable sources** - Official tourism sites, reputable education sites
-     - The URL can be a **page URL** (like .edu/visit/) OR a direct image URL if from a credible source
+   - **University Image:** MUST find a high-quality REAL EXTERIOR PHOTO of a WELL-KNOWN, ICONIC BUILDING that actually exists on THIS university's campus
+     - **CRITICAL — EXTERIOR ONLY:** The image MUST show the OUTSIDE of a building — the facade, the front entrance, the full structure from the outside. Do NOT use any photo taken from inside a building. Interior shots (lobbies, hallways, classrooms, atriums, lecture halls, libraries from the inside, cafeterias) are STRICTLY FORBIDDEN.
+     - **CRITICAL — NO HALLUCINATION:** You MUST use Google Search to find a real, verifiable image of an actual named building on this specific university's campus. Do NOT describe or invent a building. The building must be a real, publicly recognized structure at this university.
+     - **HOW TO FIND IT:** Search "[University Name] iconic building exterior" or "[University Name] famous campus building outside" or "[University Name] campus landmark exterior photo". Cross-reference with the university's own website or Wikipedia to confirm the building exists.
+     - **Examples of correct images (exterior shots only):**
+       - Harvard University → exterior photo of Widener Library facade or Memorial Hall outside
+       - MIT → exterior photo of the Great Dome (Building 10) from the outside
+       - University of Toronto → exterior photo of Convocation Hall or Hart House outside
+       - Howard University → exterior photo of Founders Library tower from outside
+       - NYU → exterior photo of Bobst Library building facade
+     - **PRIORITY ORDER (ONLY USE THESE WORKING SOURCES):**
+       1. **Official university website (.edu domain)** — campus/visit/about pages showing building exteriors
+       2. **Official university press or news pages** — articles with exterior campus building photos
+       3. **Official university virtual tour pages** — these typically show exterior named buildings
+       4. **Reputable education/news sites** with verified exterior campus photography
+     - The URL can be a **page URL** (like .edu/visit/) OR a direct image URL from a credible source
      - The URL MUST be publicly accessible (no authentication, no Access Denied errors)
      - **FORBIDDEN:** upload.wikimedia.org, images.fineartamerica.com, any site returning 404/Access Denied
-     - **REQUIRED:** Image must show distinctive campus building(s) specific to this university, not generic buildings
+     - **FORBIDDEN:** Any interior photo — lobbies, hallways, classrooms, atriums, lecture halls, cafeterias, library interiors
+     - **FORBIDDEN:** Generic stock photos — must be THIS specific university's actual named building
+     - **REQUIRED:** Exterior photo of a real, named, iconic building from THIS specific university's campus
    - **City Image:** MUST find a high-quality REAL PHOTO cityscape image showing MANY BUILDINGS of the city where the university is located
      - **CRITICAL:** Image must be a REAL, DIRECT PHOTOGRAPH showing a city view with lots of buildings visible (cityscape/urban landscape/skyline), NOT a single building, NOT framed, NOT on merchandise
      - **Examples of good images:** Chicago (skyline with skyscrapers), Toronto (waterfront skyline), Washington D.C. (Capitol with city context), Manchester (urban street with buildings), London (Big Ben with city), Quebec (Château with city)
@@ -196,12 +208,13 @@ Before generating the final JSON, perform these verification checks:
     - images.fineartamerica.com - returns Access Denied errors
     - Any URL that contains "/v1/AUTH_" or authentication tokens
     - Any site that requires login or returns access errors
-  - **PRIORITY #1:** Official university websites (.edu) - these are MOST RELIABLE
-    - Search: "[University Name].edu visit" or "[University Name].edu campus" or "[University Name].edu about"
-    - Look for pages like: /visit/, /campus/, /about/, /virtual-tour/
-    - Return the PAGE URL (e.g., https://www.towson.edu/visit/ or https://shadygrove.usmd.edu/universities/towson-university)
-    - Example good URLs: towson.edu/visit/, university.edu/campus/, accruent.com/resources/case-studies/towson
-  - For university image: Search "[University Name].edu visit" or "[University Name] official campus page"
+  - **PRIORITY #1 for university_image:** Find a real, named, iconic building from THIS specific university
+    - Search: "[University Name] most iconic building photo" or "[University Name] famous campus landmark" or "[University Name] campus building [landmark name]"
+    - Confirm the building actually exists by cross-referencing the university's official website or Wikipedia
+    - Return a URL that shows this specific real building — NOT a generic campus stock photo
+    - Return the PAGE URL or direct image URL (e.g., https://www.harvard.edu/about/campus/ or a direct .jpg from the .edu site)
+    - ⚠️ Do NOT hallucinate a building name or description — use only buildings you can confirm via search
+  - For university image: Search "[University Name] iconic building exterior" or "[University Name] famous campus building outside" or "[University Name] campus landmark exterior photo" — MUST be an outdoor/exterior shot, NOT an interior
   - For city image: Search "[City Name] cityscape" or "[City Name] city view many buildings" or "[City Name] official tourism cityscape"
   - **URL Validation:**
     - **Preferred:** Official .edu page URLs (like towson.edu/visit/) that display campus images
@@ -494,7 +507,7 @@ class GeminiService {
         },
         university_image: {
           type: "string",
-          description: "URL to a high-quality REAL DIRECT PHOTOGRAPH of a distinctive, recognizable campus building specific to this university. Must be a real photo, NOT framed, NOT on merchandise (shirts/mugs/posters), NOT rendered/artificial. Must show the actual distinctive building(s) of this specific university (e.g., grand stone buildings with ivy, red-brick towers, modern glass buildings, traditional architecture). Examples: University of Illinois (stone building with ivy), Howard University (red-brick tower), NYU (modern glass building). PRIORITY: Official .edu page URLs with images (e.g., towson.edu/visit/, university.edu/campus/), case study pages, or partnership sites. Also acceptable: Direct image URLs from credible sources. FORBIDDEN: Wikimedia Commons (upload.wikimedia.org), FineArtAmerica (images.fineartamerica.com), framed images, merchandise, rendered images. REQUIRED.",
+          description: "URL to a high-quality REAL EXTERIOR PHOTOGRAPH of a well-known, iconic building that ACTUALLY EXISTS on this specific university's campus. MUST be an outdoor/exterior shot showing the outside of the building — NOT interior, NOT inside, NOT a lobby, hallway, classroom, atrium, or cafeteria. The building must be real, named, and publicly recognized. Verified via Google Search — do NOT hallucinate a building. Examples: Harvard → Widener Library exterior, MIT → Great Dome exterior, Howard → Founders Library tower exterior, NYU → Bobst Library facade. PRIORITY: Official .edu pages, university press/news pages, virtual tour pages. FORBIDDEN: Wikimedia Commons, FineArtAmerica, interior shots, generic stock photos, invented buildings. REQUIRED.",
         },
         city_image: {
           type: "string",
@@ -681,7 +694,7 @@ class GeminiService {
       // models/gemini-3-pro-preview
       // Note: The tool name may vary based on SDK version - try both googleSearch and google_search
       const model = this.genAI.getGenerativeModel({
-        model: "gemini-3-pro-preview",
+        model: "gemini-3.1-pro-preview",
         systemInstruction: systemInstruction,
         tools: [
           {
@@ -798,6 +811,14 @@ class GeminiService {
       // Validate against Zod schema
       const validatedData = UniversitySchema.parse(parsedData);
 
+      // HARD OVERRIDE: Always restore the university name to exactly what was passed in.
+      // Gemini may substitute the official/legal name (e.g. "Goldsmiths, University of London"
+      // when "Goldsmiths' College" was passed). We never allow that.
+      if (validatedData.university !== universityName) {
+        console.log(`⚠️  University name mismatch — Gemini returned "${validatedData.university}", overriding with input: "${universityName}"`);
+        validatedData.university = universityName;
+      }
+
       console.log("\n=== VALIDATED DATA ===");
       console.log(JSON.stringify(validatedData, null, 2));
       console.log("=====================\n");
@@ -816,22 +837,13 @@ class GeminiService {
       console.log("has_african_student_association:", validatedData.campus_life?.has_african_student_association);
       console.log("=============================================\n");
 
-      // Add image search if available
+      // Fetch university image only — city image is handled separately during city extraction
       if (this.imageSearchService) {
-        console.log('\n=== FETCHING IMAGES VIA GOOGLE CUSTOM SEARCH ===');
-        
-        // Search for university image
-        const universityImage = await this.imageSearchService.searchUniversityImage(
-          validatedData.university
-        );
-        
-        // Search for city image
-        const cityImage = await this.imageSearchService.searchCityImage(
-          validatedData.location.city,
-          validatedData.location.country
-        );
+        console.log('\n=== FETCHING UNIVERSITY IMAGE VIA GOOGLE CUSTOM SEARCH ===');
 
-        // Override Gemini's images with Google CSE results
+        // Always use the original input name so image search queries match what was requested
+        const universityImage = await this.imageSearchService.searchUniversityImage(universityName);
+
         if (universityImage) {
           validatedData.university_image = universityImage;
           console.log('✅ Using Google CSE university image');
@@ -841,18 +853,9 @@ class GeminiService {
           validatedData.university_image = '';
         }
 
-        if (cityImage) {
-          validatedData.city_image = cityImage;
-          console.log('✅ Using Google CSE city image');
-          console.log(`   📍 City image URL: ${cityImage}`);
-        } else {
-          console.log('⚠️  Google CSE found no city image - setting to empty string');
-          validatedData.city_image = '';
-        }
-
         console.log('=============================================\n');
       } else {
-        // If no image search service, validate Gemini's URLs and set to empty if invalid
+        // No image search service — validate Gemini's university image URL
         if (validatedData.university_image) {
           console.log('\n=== VALIDATING GEMINI UNIVERSITY IMAGE ===');
           const isValid = await this.validateImageUrl(validatedData.university_image);
@@ -865,20 +868,10 @@ class GeminiService {
         } else {
           validatedData.university_image = '';
         }
-
-        if (validatedData.city_image) {
-          console.log('\n=== VALIDATING GEMINI CITY IMAGE ===');
-          const isValid = await this.validateImageUrl(validatedData.city_image);
-          if (!isValid) {
-            console.log('⚠️  Gemini city image URL is not a direct image - setting to empty string');
-            validatedData.city_image = '';
-          } else {
-            console.log('✅ Gemini city image URL is valid');
-          }
-        } else {
-          validatedData.city_image = '';
-        }
       }
+
+      // City image is not fetched here — it is fetched during city data extraction
+      validatedData.city_image = '';
 
       return validatedData;
     } catch (error) {

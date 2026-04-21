@@ -85,7 +85,7 @@ const UniversitySchema = z.object({
 
   university_image: z
     .string()
-    .describe('URL to a high-quality REAL DIRECT PHOTOGRAPH of a distinctive, recognizable campus building specific to this university. Must be a real photo, NOT framed, NOT on merchandise (shirts/mugs/posters), NOT rendered/artificial. Must show the actual distinctive building(s) of this specific university (e.g., grand stone buildings with ivy, red-brick towers, modern glass buildings, traditional architecture). Examples: University of Illinois (stone building with ivy), Howard University (red-brick tower), NYU (modern glass building). PRIORITY: Official .edu page URLs with images (e.g., towson.edu/visit/, university.edu/campus/), case study pages, or partnership sites. Also acceptable: Direct image URLs from credible sources. FORBIDDEN: Wikimedia Commons (upload.wikimedia.org), FineArtAmerica (images.fineartamerica.com), framed images, merchandise, rendered images. REQUIRED.'),
+    .describe('URL to a high-quality REAL EXTERIOR PHOTOGRAPH of a well-known, iconic building that ACTUALLY EXISTS on this specific university\'s campus. MUST be an outdoor/exterior shot — NOT interior, NOT inside the building (no lobbies, hallways, classrooms, atriums, cafeterias). The building must be real, named, and confirmed via search. Examples: Harvard → Widener Library exterior, MIT → Great Dome exterior, Howard → Founders Library exterior, NYU → Bobst Library facade. PRIORITY: Official .edu pages, university press/news, virtual tour pages. FORBIDDEN: Wikimedia Commons, FineArtAmerica, interior shots, generic stock photos, invented buildings. REQUIRED.'),
 
   city_image: z
     .string()
@@ -185,21 +185,21 @@ const CitySchema = z.object({
   climate: z.enum(['warm', 'moderate', 'cold']).nullable().optional()
     .describe('General climate classification: warm, moderate, or cold.'),
 
-  // Cost of Living (monthly, student-focused, integers in base currency)
+  // Cost of Living (monthly, student-realistic, integers in base currency)
   average_monthly_cost_of_living: z.number().int()
-    .describe('Total average monthly cost of living for a student. Should equal the sum of: rent + food + transportation + utilities + internet + miscellaneous.'),
+    .describe('Total monthly student cost of living. Must equal the exact sum of: rent + food + transportation + utilities + internet + miscellaneous. Based on real student spending, not professional or adult averages.'),
   average_rent: z.number().int()
-    .describe('Average monthly rent for a student in shared housing (1 bedroom in a shared apartment near campus). From Zillow, HUD Fair Market Rents, or university off-campus housing pages.'),
+    .describe("Student's monthly rent share in shared housing — 1 bedroom in a 2–3BR apartment near campus, divided by roommates. NOT a solo apartment. Sourced from Zillow, Apartments.com, university off-campus boards, or HUD Fair Market Rents. Realistic range: $400–$1,200."),
   average_food_cost: z.number().int()
-    .describe('Average monthly food cost for a student (groceries + occasional dining). From USDA moderate food plan or Numbeo grocery index.'),
+    .describe("Student's monthly grocery budget — cooking at home, using USDA Thrifty Food Plan (lowest tier) as benchmark. NOT a general adult food cost. Sourced from USDA fns.usda.gov or Numbeo grocery index. Realistic range: $200–$320."),
   transportation: z.number().int()
-    .describe('Average monthly transportation cost for a student. Use student transit pass prices from local transit authority. From transit authority websites.'),
+    .describe("Monthly cost of the student-discounted transit pass from the local transit authority. NOT the adult fare. NOT car ownership. Sourced from the transit authority's student pass pricing page. Realistic range: $40–$100."),
   utilities: z.number().int()
-    .describe('Average monthly utilities (electricity, water, gas, heating) for a student share of a shared apartment. From EIA or local utility company rates.'),
+    .describe("Student's share of monthly utilities (electricity, water, heating) in a shared apartment — full apartment bill divided by number of roommates. Sourced from EIA or local utility company rates. Realistic range: $40–$90."),
   internet_and_subscriptions: z.number().int()
-    .describe('Average monthly internet cost. From local ISP pricing or BroadbandNow.'),
+    .describe("Student's monthly share of internet cost — standard broadband plan price divided by roommates. Sourced from ISP pricing or BroadbandNow. Realistic range: $20–$40 per student."),
   miscellaneous: z.number().int()
-    .describe('Average monthly miscellaneous spending (personal care, entertainment, laundry, phone). From BLS Consumer Expenditure or Numbeo.'),
+    .describe("Student's monthly miscellaneous costs: budget phone plan ($15–$30), coin laundry ($10–$20), basic personal care ($15–$25), minimal entertainment like streaming + 1 outing ($20–$40). No dining out, no gym, no shopping. Realistic range: $80–$150."),
   currency: z.string().default('USD')
     .describe('Currency code for all monetary values (e.g., USD, CAD, GBP).'),
 
