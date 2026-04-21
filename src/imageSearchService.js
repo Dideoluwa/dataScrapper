@@ -120,6 +120,13 @@ class ImageSearchService {
         return null;
       }
 
+      // Reject generic, non-unique building names that won't produce good search results
+      const genericLandmarkNames = /^(university library|main building|administration building|admin building|library|main hall|student center|student centre|academic building|campus center|campus centre|lecture theatre|lecture theater|arts building|science building|engineering building)$/i.test(firstLine);
+      if (genericLandmarkNames) {
+        console.log(`   ⚠️  Landmark resolution returned generic name — skipping: "${firstLine}"`);
+        return null;
+      }
+
       console.log(`   🏛️  Resolved landmark: "${firstLine}"`);
       return firstLine;
     } catch (e) {
@@ -201,7 +208,7 @@ class ImageSearchService {
       url.searchParams.append("fileType", "jpg");
       url.searchParams.append("safe", "active");
 
-      const response = await fetch(url.toString());
+      const response = await this.cseFetchWithRetry(url);
       if (!response.ok) return null;
 
       const data = await response.json();
@@ -264,7 +271,7 @@ class ImageSearchService {
       url.searchParams.append("fileType", "jpg");
       url.searchParams.append("safe", "active");
 
-      const response = await fetch(url.toString());
+      const response = await this.cseFetchWithRetry(url);
       if (!response.ok) return null;
 
       const data = await response.json();
@@ -444,7 +451,12 @@ class ImageSearchService {
   // ─────────────────────────────────────────────────────────────────────────────
 
   async executeStrategies(strategies, type, name = "", country = "") {
-    for (const strategy of strategies) {
+    for (let i = 0; i < strategies.length; i++) {
+      const strategy = strategies[i];
+
+      // Small delay between strategies to avoid burst CSE quota drain
+      if (i > 0) await new Promise(r => setTimeout(r, 600));
+
       console.log(`   Trying strategy: ${strategy.name}...`);
 
       try {
@@ -459,7 +471,7 @@ class ImageSearchService {
         url.searchParams.append("fileType", "jpg"); // direct .jpg files only — no HEAD check needed
         url.searchParams.append("safe", "active");
 
-        const response = await fetch(url.toString());
+        const response = await this.cseFetchWithRetry(url);
 
         if (!response.ok) {
           console.warn(`   ⚠️ API Error ${response.status}: ${response.statusText}`);
@@ -624,6 +636,29 @@ class ImageSearchService {
     }
 
     return false;
+  }
+
+  /**
+   * Wrapper around fetch for Google CSE requests.
+   * Automatically retries on 429 Too Many Requests with exponential backoff.
+   * Delays: 2s → 4s → 8s → 16s → 32s (up to maxRetries attempts).
+   */
+  async cseFetchWithRetry(url, maxRetries = 5, baseDelayMs = 2000) {
+    let attempt = 0;
+    while (true) {
+      const response = await fetch(url.toString());
+      if (response.status !== 429) return response;
+
+      attempt++;
+      if (attempt > maxRetries) {
+        console.warn(`   ⚠️  CSE 429 Too Many Requests — max retries (${maxRetries}) exceeded, giving up.`);
+        return response;
+      }
+
+      const delay = baseDelayMs * Math.pow(2, attempt - 1);
+      console.warn(`   ⏳ CSE 429 Too Many Requests — waiting ${delay / 1000}s before retry ${attempt}/${maxRetries}...`);
+      await new Promise(r => setTimeout(r, delay));
+    }
   }
 
   isForbidden(url) {
