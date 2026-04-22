@@ -209,7 +209,15 @@ class ImageSearchService {
       url.searchParams.append("safe", "active");
 
       const response = await this.cseFetchWithRetry(url);
-      if (!response.ok) return null;
+      if (!response.ok) {
+        let errDetail = '';
+        try {
+          const errBody = await response.json();
+          errDetail = errBody?.error?.message || JSON.stringify(errBody);
+        } catch (_) {}
+        console.warn(`   ⚠️ Landmark CSE Error ${response.status}: ${response.statusText}${errDetail ? ' — ' + errDetail : ''}`);
+        return null;
+      }
 
       const data = await response.json();
       if (!data.items?.length) return null;
@@ -474,7 +482,12 @@ class ImageSearchService {
         const response = await this.cseFetchWithRetry(url);
 
         if (!response.ok) {
-          console.warn(`   ⚠️ API Error ${response.status}: ${response.statusText}`);
+          let errDetail = '';
+          try {
+            const errBody = await response.json();
+            errDetail = errBody?.error?.message || JSON.stringify(errBody);
+          } catch (_) {}
+          console.warn(`   ⚠️ API Error ${response.status}: ${response.statusText}${errDetail ? ' — ' + errDetail : ''}`);
           continue;
         }
 
