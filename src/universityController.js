@@ -1,4 +1,8 @@
 const { UniversitySchema } = require('./schemas');
+const {
+  ExtractionTimeoutError,
+  isRetryableExtractionError,
+} = require('./extractionErrors');
 
 /**
  * Controller for university data extraction endpoints
@@ -40,12 +44,24 @@ class UniversityController {
     } catch (error) {
       console.error('Extraction error:', error);
 
+      if (error instanceof ExtractionTimeoutError) {
+        res.status(504).json({
+          error: 'Extraction timed out',
+          message: error.message,
+          retryable: true,
+          code: error.code,
+          timeoutMs: error.timeoutMs,
+        });
+        return;
+      }
+
       if (error instanceof Error) {
-        // Handle Zod validation errors
         if (error.name === 'ZodError') {
           res.status(500).json({
             error: 'Data validation failed',
             details: error.message,
+            retryable: false,
+            code: 'VALIDATION_FAILED',
           });
           return;
         }
@@ -53,6 +69,8 @@ class UniversityController {
         res.status(500).json({
           error: 'Extraction failed',
           message: error.message,
+          retryable: isRetryableExtractionError(error),
+          code: error.code || 'EXTRACTION_FAILED',
         });
         return;
       }
@@ -60,6 +78,8 @@ class UniversityController {
       res.status(500).json({
         error: 'Extraction failed',
         message: 'Unknown error occurred',
+        retryable: false,
+        code: 'UNKNOWN_ERROR',
       });
     }
   };

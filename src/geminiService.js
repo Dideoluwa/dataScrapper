@@ -1,6 +1,12 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { zodToJsonSchema } = require("zod-to-json-schema");
 const { UniversitySchema, ALLOWED_PROGRAMS } = require("./schemas");
+const {
+  GEMINI_GENERATE_TIMEOUT_MS,
+  ExtractionTimeoutError,
+  withTimeout,
+  isRetryableExtractionError,
+} = require("./extractionErrors");
 
 
 const SYSTEM_INSTRUCTION = `You are an expert university data analyst for "AfroRank," a platform helping African students find universities abroad. Your primary goal is to extract a highly accurate, verified, and comprehensive JSON profile for the specified university, using data that is up-to-date as of {{CURRENT_DATE}}.
@@ -715,7 +721,10 @@ class GeminiService {
       console.log("University:", universityName);
       console.log("========================\n");
 
-      const result = await model.generateContent(prompt);
+      const result = await withTimeout(
+        model.generateContent(prompt),
+        GEMINI_GENERATE_TIMEOUT_MS
+      );
       const response = result.response;
 
       // Log full response details
@@ -875,8 +884,16 @@ class GeminiService {
 
       return validatedData;
     } catch (error) {
+      if (error instanceof ExtractionTimeoutError) {
+        throw error;
+      }
       if (error instanceof Error) {
-        throw new Error(`Gemini extraction failed: ${error.message}`);
+        const wrapped = new Error(`Gemini extraction failed: ${error.message}`);
+        wrapped.name = "GeminiExtractionError";
+        wrapped.cause = error;
+        wrapped.retryable = isRetryableExtractionError(error);
+        wrapped.code = "GEMINI_ERROR";
+        throw wrapped;
       }
       throw new Error("Gemini extraction failed: Unknown error");
     }

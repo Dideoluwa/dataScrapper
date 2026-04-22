@@ -1,4 +1,8 @@
 const { CitySchema } = require('./schemas');
+const {
+  ExtractionTimeoutError,
+  isRetryableExtractionError,
+} = require('./extractionErrors');
 
 /**
  * Controller for city data extraction endpoints
@@ -44,11 +48,24 @@ class CityController {
     } catch (error) {
       console.error('City extraction error:', error);
 
+      if (error instanceof ExtractionTimeoutError) {
+        res.status(504).json({
+          error: 'City extraction timed out',
+          message: error.message,
+          retryable: true,
+          code: error.code,
+          timeoutMs: error.timeoutMs,
+        });
+        return;
+      }
+
       if (error instanceof Error) {
         if (error.name === 'ZodError') {
           res.status(500).json({
             error: 'Data validation failed',
             details: error.message,
+            retryable: false,
+            code: 'VALIDATION_FAILED',
           });
           return;
         }
@@ -56,6 +73,8 @@ class CityController {
         res.status(500).json({
           error: 'City extraction failed',
           message: error.message,
+          retryable: isRetryableExtractionError(error),
+          code: error.code || 'CITY_EXTRACTION_FAILED',
         });
         return;
       }
@@ -63,6 +82,8 @@ class CityController {
       res.status(500).json({
         error: 'City extraction failed',
         message: 'Unknown error occurred',
+        retryable: false,
+        code: 'UNKNOWN_ERROR',
       });
     }
   };

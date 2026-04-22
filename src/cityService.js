@@ -1,5 +1,11 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { CitySchema } = require("./schemas");
+const {
+  GEMINI_GENERATE_TIMEOUT_MS,
+  ExtractionTimeoutError,
+  withTimeout,
+  isRetryableExtractionError,
+} = require("./extractionErrors");
 
 const CITY_SYSTEM_INSTRUCTION = `You are an expert cost-of-living analyst for "AfroRank," a platform helping African students find universities abroad. Your goal is to extract **accurate, verified, student-realistic** city cost-of-living data for the specified city, using data that is up-to-date as of {{CURRENT_DATE}}.
 
@@ -348,7 +354,10 @@ class CityService {
       console.log("Country:", country);
       console.log("============================\n");
 
-      const result = await model.generateContent(prompt);
+      const result = await withTimeout(
+        model.generateContent(prompt),
+        GEMINI_GENERATE_TIMEOUT_MS
+      );
       const response = result.response;
 
       // Log response details
@@ -418,8 +427,16 @@ class CityService {
 
       return validatedData;
     } catch (error) {
+      if (error instanceof ExtractionTimeoutError) {
+        throw error;
+      }
       if (error instanceof Error) {
-        throw new Error(`City data extraction failed: ${error.message}`);
+        const wrapped = new Error(`City data extraction failed: ${error.message}`);
+        wrapped.name = "CityExtractionError";
+        wrapped.cause = error;
+        wrapped.retryable = isRetryableExtractionError(error);
+        wrapped.code = "CITY_GEMINI_ERROR";
+        throw wrapped;
       }
       throw new Error("City data extraction failed: Unknown error");
     }
