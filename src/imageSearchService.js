@@ -1,5 +1,31 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
+/** Labels too vague for image search; kept in sync with validation below. */
+const GENERIC_LANDMARK_NAMES = [
+  "university library",
+  "main building",
+  "administration building",
+  "admin building",
+  "library",
+  "main hall",
+  "student center",
+  "student centre",
+  "academic building",
+  "campus center",
+  "campus centre",
+  "lecture theatre",
+  "lecture theater",
+  "arts building",
+  "science building",
+  "engineering building",
+];
+
+function genericLandmarkListForPrompt() {
+  return GENERIC_LANDMARK_NAMES.map((s) =>
+    s.replace(/\b\w/g, (c) => c.toUpperCase())
+  ).join(", ");
+}
+
 class ImageSearchService {
   constructor(apiKey, searchEngineId, geminiApiKey = null) {
     this.apiKey = apiKey;
@@ -76,6 +102,30 @@ class ImageSearchService {
   // TIER 2A: Gemini landmark/viewpoint resolution
   // ─────────────────────────────────────────────────────────────────────────────
 
+  _parseLandmarkLine(rawText) {
+    if (rawText == null || typeof rawText !== "string") return "";
+    return rawText.split("\n")[0].trim().replace(/^["'*\-\s]+|["'*\-\s]+$/g, "");
+  }
+
+  _isGenericLandmarkName(line) {
+    if (!line) return false;
+    return GENERIC_LANDMARK_NAMES.includes(line.trim().toLowerCase());
+  }
+
+  /**
+   * Returns { ok: true } or { ok: false, reason: 'generic' | 'unusable' }.
+   */
+  _validateLandmarkCandidate(firstLine) {
+    if (!firstLine || firstLine.length > 80) {
+      return { ok: false, reason: "unusable" };
+    }
+    const looksLikeSentence = /\b(is|was|are|were|has|have|had|the oldest|built in|located|known as|one of)\b/i.test(firstLine);
+    if (looksLikeSentence) return { ok: false, reason: "unusable" };
+    if (/^[^a-zA-Z]/.test(firstLine)) return { ok: false, reason: "unusable" };
+    if (this._isGenericLandmarkName(firstLine)) return { ok: false, reason: "generic" };
+    return { ok: true };
+  }
+
   /**
    * Ask Gemini (model knowledge only, no search tools) for the single most
    * photographed EXTERIOR building name at a given university.
@@ -89,46 +139,85 @@ class ImageSearchService {
 
     console.log(`   🏛️  Resolving iconic landmark for: "${universityName}"`);
 
+    const genericList = genericLandmarkListForPrompt();
+    const baseSystem =
+      "You are a building name lookup tool. You output ONLY a building name — nothing else. " +
+      "No sentences, no explanations, no punctuation other than what is part of the name itself. " +
+      "Reply with the most iconic EXTERIOR building (not interior spaces), e.g. Widener Library or Gerri C. LeBow Hall. " +
+      "Ignore interiors such as auditoriums, theaters, lobbies, atriums, or halls—always prioritize exterior buildings. " +
+      "The name must be specific enough to appear on a campus map, signage, or photo captions—not a generic type of building. " +
+      `Never reply with only these generic labels (or trivial variants): ${genericList}. ` +
+      "Prefer a proper name: named hall, tower, library, center, or quad with a distinctive title.";
+
+    const retrySystem =
+      "You are a building name lookup tool. You output ONLY one building name — nothing else. " +
+      "The previous answer was rejected. You must give a specific proper name for ONE iconic EXTERIOR building " +
+      "that is identifiable in photos and search (named hall, tower, library, student center with a full name, etc.). " +
+      `Never use only: ${genericList}. ` +
+      "No sentences, no explanation.";
+
+    const basePrompt =
+      `Name the single most iconic, most photographed EXTERIOR building on the campus of "${universityName}". ` +
+      "It must be a specific building name, not a generic category. " +
+      `Do not reply with only these generic labels: ${genericList}. ` +
+      "Reply with the building name only.";
+
     try {
-      const model = this.genAI.getGenerativeModel({
+      const modelBase = this.genAI.getGenerativeModel({
         model: "gemini-3.1-pro-preview",
-        systemInstruction:
-          "You are a building name lookup tool. You output ONLY a building name — nothing else. " +
-          "No sentences, no explanations, no punctuation other than what is part of the name itself. " +
-          "If asked about a university, always reply with just the name of the most iconic EXTERIOR building (not interior spaces), e.g.: Widener Library. Ignore interiors such as auditoriums, theaters, lobbies, atriums, or halls—always prioritize exterior buildings.",
-        generationConfig: {
-          responseMimeType: "text/plain",
-        },
+        systemInstruction: baseSystem,
+        generationConfig: { responseMimeType: "text/plain" },
       });
- 
 
-      const prompt = `Name the single most iconic, most photographed EXTERIOR building on the campus of "${universityName}". Reply with the building name only.`;
+      const result1 = await modelBase.generateContent(basePrompt);
+      const raw1 = result1.response.text();
+      console.log(`   🏛️  Gemini raw response: "${raw1}"`);
+      console.log(`   🏛️  Finish reason: ${result1.response.candidates?.[0]?.finishReason}`);
 
-      const result = await model.generateContent(prompt);
-      const rawText = result.response.text();
-      console.log(`   🏛️  Gemini raw response: "${rawText}"`);
-      console.log(`   🏛️  Finish reason: ${result.response.candidates?.[0]?.finishReason}`);
-
-      // Take only the first line — guards against multi-line responses
-      const firstLine = rawText.split('\n')[0].trim().replace(/^["'*\-\s]+|["'*\-\s]+$/g, "");
-
-      // Reject if it looks like a sentence fragment (contains verb phrases) or is empty/too long
-      const looksLikeSentence = /\b(is|was|are|were|has|have|had|the oldest|built in|located|known as|one of)\b/i.test(firstLine);
-      const looksLikeFragment = /^[^a-zA-Z]/.test(firstLine); // starts with non-letter
-      if (!firstLine || firstLine.length > 80 || looksLikeSentence || looksLikeFragment) {
-        console.log(`   ⚠️  Landmark resolution returned unusable value: "${firstLine}"`);
-        return null;
+      const line1 = this._parseLandmarkLine(raw1);
+      const v1 = this._validateLandmarkCandidate(line1);
+      if (v1.ok) {
+        console.log(`   🏛️  Resolved landmark: "${line1}"`);
+        return line1;
       }
 
-      // Reject generic, non-unique building names that won't produce good search results
-      const genericLandmarkNames = /^(university library|main building|administration building|admin building|library|main hall|student center|student centre|academic building|campus center|campus centre|lecture theatre|lecture theater|arts building|science building|engineering building)$/i.test(firstLine);
-      if (genericLandmarkNames) {
-        console.log(`   ⚠️  Landmark resolution returned generic name — skipping: "${firstLine}"`);
-        return null;
+      if (v1.reason === "generic") {
+        console.log(`   ⚠️  Landmark was generic — asking Gemini again with stricter prompt: "${line1}"`);
+      } else {
+        console.log(`   ⚠️  Landmark unusable — retrying with stricter prompt: "${line1}"`);
       }
 
-      console.log(`   🏛️  Resolved landmark: "${firstLine}"`);
-      return firstLine;
+      const modelRetry = this.genAI.getGenerativeModel({
+        model: "gemini-3.1-pro-preview",
+        systemInstruction: retrySystem,
+        generationConfig: { responseMimeType: "text/plain" },
+      });
+
+      const badAnswer = line1 || "(empty)";
+      const retryPrompt =
+        `Your previous answer was: "${badAnswer}". That is not acceptable — it was too generic, or not a single building name, or unusable. ` +
+        `Give exactly ONE iconic EXTERIOR building at "${universityName}" using its specific official or widely used name ` +
+        "(as on campus maps, the university website, or news photo captions). " +
+        "Not a vague category. Building name only, one line.";
+
+      const result2 = await modelRetry.generateContent(retryPrompt);
+      const raw2 = result2.response.text();
+      console.log(`   🏛️  Gemini retry raw response: "${raw2}"`);
+      console.log(`   🏛️  Retry finish reason: ${result2.response.candidates?.[0]?.finishReason}`);
+
+      const line2 = this._parseLandmarkLine(raw2);
+      const v2 = this._validateLandmarkCandidate(line2);
+      if (v2.ok) {
+        console.log(`   🏛️  Resolved landmark (retry): "${line2}"`);
+        return line2;
+      }
+
+      if (v2.reason === "generic") {
+        console.log(`   ⚠️  Landmark retry still generic — giving up: "${line2}"`);
+      } else {
+        console.log(`   ⚠️  Landmark retry unusable — giving up: "${line2}"`);
+      }
+      return null;
     } catch (e) {
       console.warn(`   ⚠️  Landmark resolution failed: ${e.message}`);
       return null;
