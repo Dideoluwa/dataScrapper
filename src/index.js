@@ -1,3 +1,17 @@
+const { setGlobalDispatcher, Agent } = require('undici');
+
+setGlobalDispatcher(
+  new Agent({
+    connections: 10,
+    pipelining: 0,
+    keepAliveTimeout: 10_000,
+    keepAliveMaxTimeout: 30_000,
+    connect: {
+      autoSelectFamily: true,
+    },
+  })
+);
+
 const express = require('express');
 const dotenv = require('dotenv');
 const { GeminiService } = require('./geminiService');
