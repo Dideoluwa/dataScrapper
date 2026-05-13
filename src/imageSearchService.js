@@ -164,7 +164,7 @@ class ImageSearchService {
 
     try {
       const modelBase = this.genAI.getGenerativeModel({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-3.1-flash-lite",
         systemInstruction: baseSystem,
         generationConfig: { responseMimeType: "text/plain" },
       });
@@ -188,7 +188,7 @@ class ImageSearchService {
       }
 
       const modelRetry = this.genAI.getGenerativeModel({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-3.1-flash-lite",
         systemInstruction: retrySystem,
         generationConfig: { responseMimeType: "text/plain" },
       });
@@ -240,7 +240,7 @@ class ImageSearchService {
 
     try {
       const model = this.genAI.getGenerativeModel({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-3.1-flash-lite",
         systemInstruction:
           "You are a cityscape search phrase tool. You output ONLY a short search phrase — nothing else. " +
           "No sentences, no explanations, no punctuation other than what is part of the phrase. " +

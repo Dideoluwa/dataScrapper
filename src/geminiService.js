@@ -696,10 +696,10 @@ class GeminiService {
         .replace("{{JSON_SCHEMA}}", JSON.stringify(jsonSchema, null, 2));
 
       // Initialize model with Google Search tool enabled and response schema
-      // models/gemini-3-pro-preview
+      // models/gemini-3.1-flash-lite
       // Note: The tool name may vary based on SDK version - try both googleSearch and google_search
       const model = this.genAI.getGenerativeModel({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-3.1-flash-lite",
         systemInstruction: systemInstruction,
         tools: [
           {

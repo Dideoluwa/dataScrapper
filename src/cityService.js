@@ -336,7 +336,7 @@ class CityService {
 
       // Initialize model with Google Search grounding
       const model = this.genAI.getGenerativeModel({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-3.1-flash-lite",
         systemInstruction: systemInstruction,
         tools: [{ googleSearch: {} }],
         generationConfig: {
